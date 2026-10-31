@@ -1,4 +1,4 @@
-import { query } from './db.js';
+import { query, run } from './db.js';
 import type { UserRow } from './users.js';
 
 export interface Badge {
@@ -38,6 +38,21 @@ export async function loadCustomBadges() {
       const svg = icon_svg ? (JSON.parse(icon_svg) as IconSvg) : undefined;
       return [r.key, svg ? { ...r, svg } : r];
     }),
+  );
+}
+
+/**
+ * Badge de evento: quem entrou até o prazo recebe sozinho. A badge é criada em /management
+ * (é achada pelo nome) e o prazo é 31/10/2026 23:59 em Brasília (UTC-3), já que created_at é UTC.
+ */
+const EVENT_BADGE = { label: 'Halloween 2026', until: '2026-11-01 02:59:59' };
+
+export async function grantEventBadge() {
+  const badge = [...custom.values()].find((b) => b.label.trim().toLowerCase() === EVENT_BADGE.label.toLowerCase());
+  if (!badge) return;
+  await run(
+    'INSERT IGNORE INTO user_badges (user_id, badge) SELECT id, ? FROM users WHERE created_at <= ?',
+    [badge.key, EVENT_BADGE.until],
   );
 }
 

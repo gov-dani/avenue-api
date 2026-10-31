@@ -7,6 +7,7 @@ import {
   grantedKeys,
   isBuiltinGrant,
   isGrantable,
+  grantEventBadge,
   loadCustomBadges,
 } from '../badges.js';
 import { query, queryOne, run, transaction } from '../db.js';
@@ -333,6 +334,7 @@ export default async function managementRoutes(app: FastifyInstance) {
       svg,
     ]);
     await loadCustomBadges();
+    await grantEventBadge();
     await audit(req.currentUser!, 'badge criada', label);
     return reply.code(201).send(await withHolders());
   });

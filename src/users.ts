@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { computeBadges, grantedKeys } from './badges.js';
+import { computeBadges, grantEventBadge, grantedKeys } from './badges.js';
 import { query, queryOne, run, transaction } from './db.js';
 import { RESERVED_USERNAMES, type profileSchema } from './schemas.js';
 
@@ -194,6 +194,7 @@ export async function loginWithDiscord(d: DiscordProfile): Promise<{ user: UserR
     return insertId;
   });
 
+  await grantEventBadge();
   return { user: (await findById(id))!, created: true };
 }
 

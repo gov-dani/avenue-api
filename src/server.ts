@@ -6,7 +6,7 @@ import rateLimit from '@fastify/rate-limit';
 import { env } from './env.js';
 import { COOKIE_NAME } from './auth.js';
 import './db.js';
-import { loadCustomBadges } from './badges.js';
+import { grantEventBadge, loadCustomBadges } from './badges.js';
 import { startPresenceBot } from './presence.js';
 import authRoutes from './routes/auth.js';
 import factionRoutes from './routes/faction.js';
@@ -39,6 +39,7 @@ await app.register(factionRoutes);
 await app.register(managementRoutes);
 
 await loadCustomBadges();
+await grantEventBadge();
 
 startPresenceBot(app.log);
 
