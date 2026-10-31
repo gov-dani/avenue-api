@@ -14,6 +14,9 @@ export const GRANTABLE: Record<string, Omit<Badge, 'key'>> = {
   campeao: { label: 'Campeão', desc: 'Venceu um campeonato pela Avenue' },
 };
 
+/** Badge exclusiva, atribuída pelo Discord ID e não pela liderança. */
+const DEVELOPER_DISCORD_IDS = new Set(['504882460106948619']);
+
 const ROLE_BADGE: Partial<Record<UserRow['role'], Badge>> = {
   fundador: { key: 'fundador', label: 'Fundador', desc: 'Criou a Avenue' },
   lider: { key: 'lider', label: 'Liderança', desc: 'Lidera a Avenue' },
@@ -44,6 +47,10 @@ export function computeBadges(u: UserRow): Badge[] {
 
   const role = ROLE_BADGE[u.role];
   if (role) out.push(role);
+
+  if (DEVELOPER_DISCORD_IDS.has(u.discord_id)) {
+    out.push({ key: 'dev', label: 'Desenvolvedor', desc: 'Desenvolveu e mantém o site da Avenue' });
+  }
 
   for (const key of grantedKeys(u)) out.push({ key, ...GRANTABLE[key]! });
 
