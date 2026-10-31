@@ -7,6 +7,7 @@
 --   user_profiles    o que a pessoa edita no perfil
 --   user_discord     dados vindos da conta do Discord + o que sincronizar
 --   user_links       links do perfil
+--   user_roblox      conta do Roblox vinculada (verificada pela bio)
 --   user_games       jogos
 --   user_gear        equipamentos do setup
 --   user_badges      badges concedidas pela liderança
@@ -81,6 +82,25 @@ CREATE TABLE IF NOT EXISTS user_links (
   label      VARCHAR(40)  NOT NULL,
   url        VARCHAR(500) NOT NULL,
   INDEX idx_user_links_user (user_id, sort_order),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Conta do Roblox vinculada. roblox_id só é preenchido depois que a pessoa prova que a conta é dela
+-- (código colado na bio do Roblox). Enquanto isso, o pedido fica em pending_*
+CREATE TABLE IF NOT EXISTS user_roblox (
+  user_id          INT UNSIGNED NOT NULL PRIMARY KEY,
+  roblox_id        VARCHAR(20)  NULL UNIQUE,
+  username         VARCHAR(32)  NOT NULL DEFAULT '',
+  display_name     VARCHAR(64)  NOT NULL DEFAULT '',
+  avatar_url       VARCHAR(500) NOT NULL DEFAULT '',
+  friends          INT          NOT NULL DEFAULT 0,
+  followers        INT          NOT NULL DEFAULT 0,
+  account_created  VARCHAR(30)  NOT NULL DEFAULT '',
+  synced_at        DATETIME     NULL,
+  pending_id       VARCHAR(20)  NULL,
+  pending_username VARCHAR(32)  NOT NULL DEFAULT '',
+  pending_code     VARCHAR(24)  NOT NULL DEFAULT '',
+  pending_at       DATETIME     NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

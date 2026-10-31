@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import { computeBadges, grantEventBadge, grantedKeys, publicRole } from './badges.js';
 import { query, queryOne, run, transaction } from './db.js';
+import { CODE_TTL_MIN } from './roblox.js';
 import { RESERVED_USERNAMES, type profileSchema } from './schemas.js';
 
 export const ROLES = ['visitante', 'membro', 'equipe', 'lider', 'fundador'] as const;
@@ -55,6 +56,17 @@ export interface UserRow {
   sync_avatar: number;
   sync_banner: number;
   sync_name: number;
+  // user_roblox (roblox_id é null até a conta ser verificada)
+  roblox_id: string | null;
+  roblox_username: string;
+  roblox_display_name: string;
+  roblox_avatar: string;
+  roblox_friends: number;
+  roblox_followers: number;
+  roblox_created: string;
+  roblox_pending_username: string;
+  roblox_pending_code: string;
+  roblox_pending_at: string | null;
   // user_links, user_games, user_gear, user_badges
   links: Link[];
   games: Game[];
@@ -72,10 +84,16 @@ const SELECT_USER = `
          p.avatar_decoration, p.name_style, p.name_font, p.show_activity, p.show_views, p.link_layout,
          d.handle AS discord_handle, d.name AS discord_name, d.avatar_url AS discord_avatar,
          d.banner_url AS discord_banner, d.accent AS discord_accent, d.synced_at AS discord_synced_at,
-         d.sync_avatar, d.sync_banner, d.sync_name
+         d.sync_avatar, d.sync_banner, d.sync_name,
+         r.roblox_id, COALESCE(r.username, '') AS roblox_username, COALESCE(r.display_name, '') AS roblox_display_name,
+         COALESCE(r.avatar_url, '') AS roblox_avatar, COALESCE(r.friends, 0) AS roblox_friends,
+         COALESCE(r.followers, 0) AS roblox_followers, COALESCE(r.account_created, '') AS roblox_created,
+         COALESCE(r.pending_username, '') AS roblox_pending_username, COALESCE(r.pending_code, '') AS roblox_pending_code,
+         r.pending_at AS roblox_pending_at
   FROM users u
   JOIN user_profiles p ON p.user_id = u.id
-  JOIN user_discord d ON d.user_id = u.id`;
+  JOIN user_discord d ON d.user_id = u.id
+  LEFT JOIN user_roblox r ON r.user_id = u.id`;
 
 /** Anexa as listas (links, jogos, equipamentos, badges) de vários usuários de uma vez. */
 async function hydrate(rows: BaseRow[]): Promise<UserRow[]> {
@@ -275,6 +293,18 @@ export function toPublic(u: UserRow) {
     linkLayout: u.link_layout,
     games: u.games,
     gear: u.gear,
+    roblox: u.roblox_id
+      ? {
+          id: u.roblox_id,
+          username: u.roblox_username,
+          displayName: u.roblox_display_name,
+          avatarUrl: u.roblox_avatar,
+          friends: u.roblox_friends,
+          followers: u.roblox_followers,
+          createdAt: u.roblox_created,
+          url: `https://www.roblox.com/users/${u.roblox_id}/profile`,
+        }
+      : null,
     // Contagem escondida pelo dono não sai na API pública
     views: u.show_views ? u.views : 0,
     showViews: Boolean(u.show_views),
@@ -292,6 +322,14 @@ export const WHITELISTED_SQL = `(u.whitelisted = 1 OR u.discord_id IN (${[...MAN
 /** Só quem passou pela whitelist (ou é da gestão) tem perfil público. */
 export const isWhitelisted = (u: UserRow) => Boolean(u.whitelisted) || canManage(u);
 
+/** Pedido de vínculo ainda esperando o código na bio (vence em CODE_TTL_MIN minutos). */
+function pendingRoblox(u: UserRow) {
+  if (!u.roblox_pending_code || !u.roblox_pending_at) return null;
+  const expiresAt = Date.parse(u.roblox_pending_at.replace(' ', 'T') + 'Z') + CODE_TTL_MIN * 60_000;
+  if (Number.isNaN(expiresAt) || expiresAt < Date.now()) return null;
+  return { username: u.roblox_pending_username, code: u.roblox_pending_code, expiresAt: new Date(expiresAt).toISOString() };
+}
+
 export const toPrivate = (u: UserRow) => ({
   ...toPublic(u),
   id: u.id,
@@ -303,6 +341,7 @@ export const toPrivate = (u: UserRow) => ({
   syncBanner: Boolean(u.sync_banner),
   syncName: Boolean(u.sync_name),
   showActivity: Boolean(u.show_activity),
+  robloxPending: pendingRoblox(u),
   discordAccount: {
     linked: isLinked(u),
     handle: u.discord_handle,

@@ -5,6 +5,7 @@ import { queryOne, run } from '../db.js';
 import { requireWhitelisted } from '../auth.js';
 import { profileSchema } from '../schemas.js';
 import { fetchActivity } from '../presence.js';
+import { refreshIfStale } from '../roblox-store.js';
 import { WHITELISTED_SQL, applySync, findById, findByUsername, isLinked, isWhitelisted, saveProfile, toPrivate, toPublic } from '../users.js';
 
 const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -13,6 +14,8 @@ export default async function profileRoutes(app: FastifyInstance) {
   app.get<{ Params: { username: string } }>('/profiles/:username', async (req, reply) => {
     const user = await findByUsername(req.params.username);
     if (!user || !isWhitelisted(user)) return reply.code(404).send({ error: 'Perfil não encontrado' });
+    // Dados do Roblox se atualizam sozinhos de tempos em tempos, sem fazer a visita esperar
+    if (user.roblox_id) refreshIfStale(user.id, user.roblox_id).catch((err) => req.log.warn({ err }, 'roblox refresh'));
     return toPublic(user);
   });
 
