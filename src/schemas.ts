@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const RESERVED_USERNAMES = new Set([
   'api', 'admin', 'login', 'registro', 'painel', 'membros', 'entrar', 'sair',
-  'sobre', 'termos', 'privacidade', 'cookies', 'lgpd', 'contato', 'ajuda', 'static', 'assets', '_next', 'favicon',
+  'management', 'sobre', 'termos', 'privacidade', 'cookies', 'lgpd', 'contato', 'ajuda', 'static', 'assets', '_next', 'favicon',
 ]);
 
 const httpUrl = z
@@ -49,15 +49,30 @@ export const profileSchema = z.object({
     .max(16),
 });
 
-export const memberRoleSchema = z.object({
-  role: z.enum(['visitante', 'membro', 'equipe', 'lider', 'fundador']),
-});
-
 export const membersQuerySchema = z.object({
   q: z.string().trim().max(40).optional(),
   role: z.enum(['membro', 'equipe', 'lider', 'fundador']).optional(),
 });
 
+// Quais badges existem é decidido na rota (as de fábrica + as criadas em /management)
 export const grantsSchema = z.object({
-  badges: z.array(z.enum(['girls', 'parceiro', 'vip', 'campeao'])).max(4),
+  badges: z.array(z.string().max(20)).max(60),
+});
+
+export const BADGE_ICONS = [
+  'star', 'heart', 'crown', 'bolt', 'shield', 'flame', 'gem', 'trophy', 'code',
+  'music', 'gamepad', 'rocket', 'skull', 'moon', 'sun', 'check', 'camera', 'mic',
+] as const;
+
+export const badgeDefSchema = z.object({
+  label: z.string().trim().min(1, 'Informe o nome da badge').max(40),
+  desc: z.string().trim().max(120),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida'),
+  icon: z.enum(BADGE_ICONS),
+});
+
+export const adminUserSchema = z.object({
+  role: z.enum(['visitante', 'membro', 'equipe', 'lider', 'fundador']).optional(),
+  username: z.string().regex(/^[a-zA-Z0-9_]{3,32}$/, 'Use de 3 a 32 letras, números ou _').optional(),
+  views: z.number().int().min(0).max(1_000_000_000).optional(),
 });

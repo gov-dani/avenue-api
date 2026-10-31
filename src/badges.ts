@@ -1,10 +1,36 @@
+import { query } from './db.js';
 import type { UserRow } from './users.js';
 
 export interface Badge {
   key: string;
   label: string;
   desc: string;
+  /** Só nas badges criadas em /management */
+  color?: string;
+  icon?: string;
 }
+
+export interface CustomBadge {
+  key: string;
+  label: string;
+  desc: string;
+  color: string;
+  icon: string;
+}
+
+// Badges criadas em /management ficam na memória para o computeBadges (síncrono) enxergar.
+let custom = new Map<string, CustomBadge>();
+
+export async function loadCustomBadges() {
+  const rows = await query<CustomBadge>(
+    'SELECT badge_key AS `key`, label, description AS `desc`, color, icon FROM badge_defs ORDER BY created_at',
+  );
+  custom = new Map(rows.map((r) => [r.key, r]));
+}
+
+export const customBadges = () => [...custom.values()];
+export const isBuiltinGrant = (key: string) => Object.hasOwn(GRANTABLE, key);
+export const isGrantable = (key: string) => isBuiltinGrant(key) || custom.has(key);
 
 /** Badges que a liderança concede à mão. As demais são calculadas do perfil. */
 export const GRANTABLE: Record<string, Omit<Badge, 'key'>> = {
@@ -39,7 +65,7 @@ const fmtDate = (sqlDate: string) => {
   return `${d}/${m}/${y}`;
 };
 
-export const grantedKeys = (u: UserRow): string[] => u.badges.filter((k) => k in GRANTABLE);
+export const grantedKeys = (u: UserRow): string[] => u.badges.filter(isGrantable);
 
 /** Badges exibidas no perfil, na ordem em que aparecem. */
 export function computeBadges(u: UserRow): Badge[] {
@@ -52,7 +78,7 @@ export function computeBadges(u: UserRow): Badge[] {
     out.push({ key: 'dev', label: 'Desenvolvedor', desc: 'Desenvolveu e mantém o site da Avenue' });
   }
 
-  for (const key of grantedKeys(u)) out.push({ key, ...GRANTABLE[key]! });
+  for (const key of grantedKeys(u)) out.push(custom.get(key) ?? { key, ...GRANTABLE[key]! });
 
   if (u.role !== 'visitante') {
     out.push({ key: 'desde', label: 'Na Avenue', desc: `Membro desde ${fmtDate(u.created_at)}` });

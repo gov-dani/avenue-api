@@ -233,6 +233,10 @@ async function replaceList(
 }
 
 export const setRole = (id: number, role: Role) => run('UPDATE users SET role = ? WHERE id = ?', [role, id]);
+export const setUsername = (id: number, username: string) => run('UPDATE users SET username = ? WHERE id = ?', [username, id]);
+export const setViews = (id: number, views: number) => run('UPDATE users SET views = ? WHERE id = ?', [views, id]);
+// Perfil, listas, badges e visualizações caem junto (ON DELETE CASCADE)
+export const deleteUser = (id: number) => run('DELETE FROM users WHERE id = ?', [id]);
 
 export async function setBadges(id: number, badges: string[]) {
   await transaction(async (tx) => {

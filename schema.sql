@@ -10,6 +10,8 @@
 --   user_games       jogos
 --   user_gear        equipamentos do setup
 --   user_badges      badges concedidas pela liderança
+--   badge_defs       badges criadas no /management
+--   audit_log        histórico das ações feitas no /management
 --   profile_views    quem já contou como visualização
 
 CREATE DATABASE IF NOT EXISTS avenue CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -106,4 +108,25 @@ CREATE TABLE IF NOT EXISTS profile_views (
   viewed_at BIGINT       NOT NULL,
   PRIMARY KEY (user_id, visitor),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Badges criadas pelo dono em /management (as de fábrica ficam no código)
+CREATE TABLE IF NOT EXISTS badge_defs (
+  badge_key   VARCHAR(20)  NOT NULL PRIMARY KEY,
+  label       VARCHAR(40)  NOT NULL,
+  description VARCHAR(120) NOT NULL DEFAULT '',
+  color       VARCHAR(7)   NOT NULL DEFAULT '#22c55e',
+  icon        VARCHAR(20)  NOT NULL DEFAULT 'star',
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Histórico do que foi feito em /management
+CREATE TABLE IF NOT EXISTS audit_log (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  actor      VARCHAR(32)  NOT NULL,
+  action     VARCHAR(40)  NOT NULL,
+  target     VARCHAR(64)  NOT NULL DEFAULT '',
+  detail     VARCHAR(300) NOT NULL DEFAULT '',
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
