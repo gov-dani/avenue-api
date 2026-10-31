@@ -174,12 +174,11 @@ export async function loginWithDiscord(d: DiscordProfile): Promise<{ user: UserR
   const username = await freeUsername(d.handle);
 
   const id = await transaction(async (tx) => {
-    // O fundador (primeiro acesso) já nasce liberado; os demais pedem whitelist
-    const { insertId } = await tx('INSERT INTO users (discord_id, username, role, whitelisted) VALUES (?, ?, ?, ?)', [
+    // Todos nascem sem whitelist, sem exceção; só a gestão aprova
+    const { insertId } = await tx('INSERT INTO users (discord_id, username, role, whitelisted) VALUES (?, ?, ?, 0)', [
       d.id,
       username,
       role,
-      Number(role === 'fundador'),
     ]);
     await tx('INSERT INTO user_profiles (user_id, display_name, avatar_url, banner_url, discord) VALUES (?, ?, ?, ?, ?)', [
       insertId,

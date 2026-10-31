@@ -3,7 +3,7 @@ import { createReadStream } from 'node:fs';
 import { mkdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import { requireUser } from '../auth.js';
+import { requireWhitelisted } from '../auth.js';
 import { env } from '../env.js';
 
 type Kind = 'image' | 'audio';
@@ -44,7 +44,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
   app.post<{ Params: { kind: string } }>(
     '/me/upload/:kind',
     {
-      preHandler: requireUser,
+      preHandler: requireWhitelisted,
       bodyLimit: LIMIT.audio,
       config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
     },

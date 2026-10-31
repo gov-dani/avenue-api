@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { env } from '../env.js';
 import { queryOne, run } from '../db.js';
-import { requireUser } from '../auth.js';
+import { requireWhitelisted } from '../auth.js';
 import { profileSchema } from '../schemas.js';
 import { fetchActivity } from '../presence.js';
 import { applySync, findById, findByUsername, isLinked, isWhitelisted, saveProfile, toPrivate, toPublic } from '../users.js';
@@ -46,7 +46,7 @@ export default async function profileRoutes(app: FastifyInstance) {
     },
   );
 
-  app.put('/me/profile', { preHandler: requireUser }, async (req, reply) => {
+  app.put('/me/profile', { preHandler: requireWhitelisted }, async (req, reply) => {
     const parsed = profileSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
     const p = parsed.data;
@@ -75,7 +75,7 @@ export default async function profileRoutes(app: FastifyInstance) {
     const row = (await queryOne<{ profiles: number; members: string | null }>(
       `SELECT COUNT(*) AS profiles,
               SUM(CASE WHEN role != 'visitante' THEN 1 ELSE 0 END) AS members
-       FROM users`,
+       FROM users WHERE whitelisted = 1`,
     ))!;
     return { profiles: Number(row.profiles), members: Number(row.members ?? 0) };
   });
