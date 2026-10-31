@@ -62,4 +62,11 @@ const statements = schema
   .map((s) => s.trim())
   .filter(Boolean);
 
-for (const sql of statements) await run(sql);
+for (const sql of statements) {
+  try {
+    await run(sql);
+  } catch (err) {
+    // 1060 = coluna já existe: o ALTER de uma migração antiga que já foi aplicada
+    if ((err as { errno?: number }).errno !== 1060) throw err;
+  }
+}

@@ -12,6 +12,7 @@
 --   user_badges      badges concedidas pela liderança
 --   badge_defs       badges criadas no /management
 --   audit_log        histórico das ações feitas no /management
+--   whitelist_requests  pedidos de link (@usuário) aguardando aprovação
 --   profile_views    quem já contou como visualização
 
 CREATE DATABASE IF NOT EXISTS avenue CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -116,9 +117,14 @@ CREATE TABLE IF NOT EXISTS badge_defs (
   label       VARCHAR(40)  NOT NULL,
   description VARCHAR(120) NOT NULL DEFAULT '',
   color       VARCHAR(7)   NOT NULL DEFAULT '#22c55e',
-  icon        VARCHAR(20)  NOT NULL DEFAULT 'star',
+  icon        VARCHAR(48)  NOT NULL DEFAULT 'star',
+  icon_svg    TEXT         NULL,
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes dos ícones do allsvgicons (o erro de coluna repetida é ignorado ao subir)
+ALTER TABLE badge_defs MODIFY icon VARCHAR(48) NOT NULL DEFAULT 'star';
+ALTER TABLE badge_defs ADD COLUMN icon_svg TEXT NULL;
 
 -- Histórico do que foi feito em /management
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -129,4 +135,24 @@ CREATE TABLE IF NOT EXISTS audit_log (
   detail     VARCHAR(300) NOT NULL DEFAULT '',
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_audit_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Quem pode ter perfil público. Linhas que já existiam ficam liberadas (DEFAULT 1);
+-- contas novas entram com 0 e dependem do pedido aprovado em /management
+ALTER TABLE users ADD COLUMN whitelisted TINYINT NOT NULL DEFAULT 1;
+
+-- Pedidos de whitelist: o @usuário desejado e a decisão da gestão (status: pending, approved, rejected)
+CREATE TABLE IF NOT EXISTS whitelist_requests (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED NOT NULL,
+  username    VARCHAR(32)  NOT NULL,
+  message     VARCHAR(300) NOT NULL DEFAULT '',
+  status      VARCHAR(10)  NOT NULL DEFAULT 'pending',
+  reason      VARCHAR(300) NOT NULL DEFAULT '',
+  reviewed_by VARCHAR(32)  NOT NULL DEFAULT '',
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at DATETIME     NULL,
+  INDEX idx_whitelist_status (status, created_at),
+  INDEX idx_whitelist_user (user_id, id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

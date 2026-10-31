@@ -29,6 +29,7 @@ export interface UserRow {
   role: Role;
   views: number;
   created_at: string;
+  whitelisted: number;
   // user_profiles
   display_name: string;
   bio: string;
@@ -61,7 +62,7 @@ type BaseRow = Omit<UserRow, 'links' | 'games' | 'gear' | 'badges' | 'discord_sy
 };
 
 const SELECT_USER = `
-  SELECT u.id, u.discord_id, u.username, u.role, u.views, u.created_at,
+  SELECT u.id, u.discord_id, u.username, u.role, u.views, u.created_at, u.whitelisted,
          p.display_name, p.bio, p.avatar_url, p.banner_url, p.discord, p.music_url, p.music_title,
          p.avatar_decoration, p.show_activity,
          d.handle AS discord_handle, d.name AS discord_name, d.avatar_url AS discord_avatar,
@@ -170,10 +171,12 @@ export async function loginWithDiscord(d: DiscordProfile): Promise<{ user: UserR
   const username = await freeUsername(d.handle);
 
   const id = await transaction(async (tx) => {
-    const { insertId } = await tx('INSERT INTO users (discord_id, username, role) VALUES (?, ?, ?)', [
+    // O fundador (primeiro acesso) já nasce liberado; os demais pedem whitelist
+    const { insertId } = await tx('INSERT INTO users (discord_id, username, role, whitelisted) VALUES (?, ?, ?, ?)', [
       d.id,
       username,
       role,
+      Number(role === 'fundador'),
     ]);
     await tx('INSERT INTO user_profiles (user_id, display_name, avatar_url, banner_url, discord) VALUES (?, ?, ?, ?, ?)', [
       insertId,
@@ -272,10 +275,14 @@ export function toPublic(u: UserRow) {
 const MANAGER_DISCORD_IDS = new Set(['504882460106948619']);
 export const canManage = (u: UserRow) => MANAGER_DISCORD_IDS.has(u.discord_id);
 
+/** Só quem passou pela whitelist (ou é da gestão) tem perfil público. */
+export const isWhitelisted = (u: UserRow) => Boolean(u.whitelisted) || canManage(u);
+
 export const toPrivate = (u: UserRow) => ({
   ...toPublic(u),
   id: u.id,
   canManage: canManage(u),
+  whitelisted: isWhitelisted(u),
   syncAvatar: Boolean(u.sync_avatar),
   syncBanner: Boolean(u.sync_banner),
   syncName: Boolean(u.sync_name),

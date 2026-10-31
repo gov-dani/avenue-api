@@ -58,6 +58,24 @@ const asCard = (u: UserRow) => ({
 
 const asDetail = (u: UserRow) => ({ ...toPrivate(u), ...asCard(u) });
 
+// Ícones do allsvgicons.com: o SVG é baixado uma vez e guardado, só com formas (nada de script ou link)
+const ICON_HOST = 'https://i.allsvgicons.com';
+const UNSAFE_SVG = /<(script|foreignObject|iframe|image|use|style|a|animate|set)\b|\son\w+\s*=|javascript:|href\s*=/i;
+
+async function fetchIcon(icon: string): Promise<string | null | undefined> {
+  const [pack, name] = icon.split(':');
+  if (!pack || !name) return null; // ícone pronto do site, sem SVG guardado
+  try {
+    const res = await fetch(`${ICON_HOST}/${pack}/${name}.svg`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return undefined;
+    const m = /^<svg[^>]*\sviewBox="([\d.\s-]+)"[^>]*>([\s\S]*)<\/svg>\s*$/.exec((await res.text()).trim());
+    if (!m || m[2]!.length > 8000 || UNSAFE_SVG.test(m[2]!)) return undefined;
+    return JSON.stringify({ viewBox: m[1], body: m[2] });
+  } catch {
+    return undefined;
+  }
+}
+
 const ts = (sql: string) => Date.parse(`${sql.replace(' ', 'T')}Z`);
 
 export default async function managementRoutes(app: FastifyInstance) {
@@ -204,13 +222,17 @@ export default async function managementRoutes(app: FastifyInstance) {
     if (customBadges().length >= 40) return reply.code(400).send({ error: 'Limite de 40 badges criadas' });
 
     const { label, desc, color, icon } = parsed.data;
+    const svg = await fetchIcon(icon);
+    if (svg === undefined) return reply.code(400).send({ error: 'Não foi possível carregar esse ícone' });
+
     const key = `c_${randomBytes(5).toString('hex')}`;
-    await run('INSERT INTO badge_defs (badge_key, label, description, color, icon) VALUES (?, ?, ?, ?, ?)', [
+    await run('INSERT INTO badge_defs (badge_key, label, description, color, icon, icon_svg) VALUES (?, ?, ?, ?, ?, ?)', [
       key,
       label,
       desc,
       color.toLowerCase(),
       icon,
+      svg,
     ]);
     await loadCustomBadges();
     await audit(req.currentUser!, 'badge criada', label);
@@ -225,11 +247,15 @@ export default async function managementRoutes(app: FastifyInstance) {
     }
 
     const { label, desc, color, icon } = parsed.data;
-    await run('UPDATE badge_defs SET label = ?, description = ?, color = ?, icon = ? WHERE badge_key = ?', [
+    const svg = await fetchIcon(icon);
+    if (svg === undefined) return reply.code(400).send({ error: 'Não foi possível carregar esse ícone' });
+
+    await run('UPDATE badge_defs SET label = ?, description = ?, color = ?, icon = ?, icon_svg = ? WHERE badge_key = ?', [
       label,
       desc,
       color.toLowerCase(),
       icon,
+      svg,
       req.params.key,
     ]);
     await loadCustomBadges();

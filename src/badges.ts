@@ -8,6 +8,13 @@ export interface Badge {
   /** Só nas badges criadas em /management */
   color?: string;
   icon?: string;
+  /** Ícone do allsvgicons.com, guardado no banco para o perfil não depender de site externo */
+  svg?: IconSvg;
+}
+
+export interface IconSvg {
+  viewBox: string;
+  body: string;
 }
 
 export interface CustomBadge {
@@ -16,16 +23,22 @@ export interface CustomBadge {
   desc: string;
   color: string;
   icon: string;
+  svg?: IconSvg;
 }
 
 // Badges criadas em /management ficam na memória para o computeBadges (síncrono) enxergar.
 let custom = new Map<string, CustomBadge>();
 
 export async function loadCustomBadges() {
-  const rows = await query<CustomBadge>(
-    'SELECT badge_key AS `key`, label, description AS `desc`, color, icon FROM badge_defs ORDER BY created_at',
+  const rows = await query<CustomBadge & { icon_svg: string | null }>(
+    'SELECT badge_key AS `key`, label, description AS `desc`, color, icon, icon_svg FROM badge_defs ORDER BY created_at',
   );
-  custom = new Map(rows.map((r) => [r.key, r]));
+  custom = new Map(
+    rows.map(({ icon_svg, ...r }) => {
+      const svg = icon_svg ? (JSON.parse(icon_svg) as IconSvg) : undefined;
+      return [r.key, svg ? { ...r, svg } : r];
+    }),
+  );
 }
 
 export const customBadges = () => [...custom.values()];

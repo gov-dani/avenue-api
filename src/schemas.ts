@@ -68,11 +68,25 @@ export const badgeDefSchema = z.object({
   label: z.string().trim().min(1, 'Informe o nome da badge').max(40),
   desc: z.string().trim().max(120),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida'),
-  icon: z.enum(BADGE_ICONS),
+  // Um dos ícones prontos ou "pacote:nome" de um ícone do allsvgicons.com
+  icon: z.union([z.enum(BADGE_ICONS), z.string().regex(/^[a-z0-9-]{1,20}:[a-z0-9-]{1,26}$/)]),
 });
 
 export const adminUserSchema = z.object({
   role: z.enum(['visitante', 'membro', 'equipe', 'lider', 'fundador']).optional(),
   username: z.string().regex(/^[a-zA-Z0-9_]{3,32}$/, 'Use de 3 a 32 letras, números ou _').optional(),
   views: z.number().int().min(0).max(1_000_000_000).optional(),
+});
+
+const usernameField = z.string().regex(/^[a-zA-Z0-9_]{3,32}$/, 'Use de 3 a 32 letras, números ou _');
+
+export const whitelistRequestSchema = z.object({
+  username: usernameField,
+  message: z.string().trim().max(300),
+});
+
+export const whitelistReviewSchema = z.object({
+  // Na aprovação a gestão pode ajustar o @ pedido; na recusa, explicar o motivo
+  username: usernameField.optional(),
+  reason: z.string().trim().max(300).optional(),
 });
