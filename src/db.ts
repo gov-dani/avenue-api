@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import mysql, { type ResultSetHeader, type RowDataPacket } from 'mysql2/promise';
 import { env } from './env.js';
 
@@ -33,49 +34,32 @@ export async function run(sql: string, params: unknown[] = []): Promise<ResultSe
   return res;
 }
 
-// Colunas de texto longo (TEXT) não aceitam DEFAULT em todas as versões do MySQL/MariaDB;
-// o INSERT em users.ts informa todas elas.
-await run(`
-  CREATE TABLE IF NOT EXISTS users (
-    id                INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    discord_id        VARCHAR(64)  NOT NULL UNIQUE,
-    username          VARCHAR(32)  NOT NULL UNIQUE,
-    display_name      VARCHAR(100) NOT NULL,
-    bio               TEXT         NOT NULL,
-    avatar_url        TEXT         NOT NULL,
-    banner_url        TEXT         NOT NULL,
-    discord           VARCHAR(150) NOT NULL DEFAULT '',
-    discord_handle    VARCHAR(100) NOT NULL DEFAULT '',
-    discord_name      VARCHAR(100) NOT NULL DEFAULT '',
-    discord_avatar    TEXT         NOT NULL,
-    discord_banner    TEXT         NOT NULL,
-    discord_accent    VARCHAR(32)  NOT NULL DEFAULT '',
-    discord_synced_at VARCHAR(32)  NOT NULL DEFAULT '',
-    sync_avatar       TINYINT      NOT NULL DEFAULT 1,
-    sync_banner       TINYINT      NOT NULL DEFAULT 1,
-    sync_name         TINYINT      NOT NULL DEFAULT 0,
-    show_activity     TINYINT      NOT NULL DEFAULT 1,
-    badges            TEXT         NOT NULL,
-    music_url         TEXT         NOT NULL,
-    music_title       VARCHAR(255) NOT NULL DEFAULT '',
-    avatar_decoration VARCHAR(64)  NOT NULL DEFAULT '',
-    links             TEXT         NOT NULL,
-    games             TEXT         NOT NULL,
-    gear              TEXT         NOT NULL,
-    role              VARCHAR(20)  NOT NULL DEFAULT 'visitante',
-    views             INT          NOT NULL DEFAULT 0,
-    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_users_role (role)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`);
+export type Run = typeof run;
 
-// Quem já contou como visualização de cada perfil (impede recontar a cada reload)
-await run(`
-  CREATE TABLE IF NOT EXISTS profile_views (
-    user_id   INT UNSIGNED NOT NULL,
-    visitor   VARCHAR(64)  NOT NULL,
-    viewed_at BIGINT       NOT NULL,
-    PRIMARY KEY (user_id, visitor),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`);
+/** Várias escritas que valem juntas: se uma falhar, nenhuma fica. */
+export async function transaction<T>(fn: (run: Run) => Promise<T>): Promise<T> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const out = await fn(async (sql, params = []) => (await conn.query<ResultSetHeader>(sql, params))[0]);
+    await conn.commit();
+    return out;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+// As tabelas vivem em schema.sql (uma só fonte); aqui roda a parte depois de "@tables".
+const schema = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8').split('-- @tables')[1] ?? '';
+const statements = schema
+  .split('\n')
+  .filter((line) => !line.trim().startsWith('--'))
+  .join('\n')
+  .split(';')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+for (const sql of statements) await run(sql);

@@ -31,27 +31,12 @@ const hostOf = (url: string) => {
   }
 };
 
-const list = (json: string): { url?: string }[] => {
-  try {
-    return JSON.parse(json) as { url?: string }[];
-  } catch {
-    return [];
-  }
-};
-
 const fmtDate = (sqlDate: string) => {
   const [y, m, d] = sqlDate.slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
 };
 
-export const grantedKeys = (u: UserRow): string[] => {
-  try {
-    const keys = JSON.parse(u.badges) as string[];
-    return keys.filter((k) => k in GRANTABLE);
-  } catch {
-    return [];
-  }
-};
+export const grantedKeys = (u: UserRow): string[] => u.badges.filter((k) => k in GRANTABLE);
 
 /** Badges exibidas no perfil, na ordem em que aparecem. */
 export function computeBadges(u: UserRow): Badge[] {
@@ -68,13 +53,13 @@ export function computeBadges(u: UserRow): Badge[] {
   if (!u.discord_id.startsWith('dev:')) {
     out.push({ key: 'discord', label: 'Discord vinculado', desc: 'Conta conectada ao Discord' });
   }
-  if (list(u.links).some((l) => STREAM_HOSTS.test(hostOf(l.url ?? '')))) {
+  if (u.links.some((l) => STREAM_HOSTS.test(hostOf(l.url)))) {
     out.push({ key: 'streamer', label: 'Criador de conteúdo', desc: 'Faz live ou vídeos' });
   }
-  if (list(u.games).length >= 3) {
+  if (u.games.length >= 3) {
     out.push({ key: 'gamer', label: 'Gamer', desc: 'Joga em vários jogos' });
   }
-  if (list(u.gear).length >= 4) {
+  if (u.gear.length >= 4) {
     out.push({ key: 'setup', label: 'Setup montado', desc: 'Mostra o setup completo' });
   }
   if (u.views >= 100) {

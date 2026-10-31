@@ -1,8 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import { query, run } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { grantsSchema, memberRoleSchema, membersQuerySchema } from '../schemas.js';
-import { ROLE_RANK, findByUsername, toCard, type UserRow } from '../users.js';
+import { ROLE_RANK, findByUsername, listUsers, setBadges, setRole, toCard } from '../users.js';
 
 export default async function factionRoutes(app: FastifyInstance) {
   app.get('/faction/members', async (req, reply) => {
@@ -10,7 +9,7 @@ export default async function factionRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: 'Filtro inválido' });
     const { q, role } = parsed.data;
 
-    const rows = await query<UserRow>("SELECT * FROM users WHERE role != 'visitante'");
+    const rows = await listUsers("u.role != 'visitante'");
 
     const needle = q?.toLowerCase();
     return rows
@@ -30,7 +29,7 @@ export default async function factionRoutes(app: FastifyInstance) {
 
   // Lista todos os cadastros (inclusive visitantes) para o painel de administração
   app.get('/faction/users', { preHandler: requireAdmin }, async () => {
-    const rows = await query<UserRow>('SELECT * FROM users ORDER BY created_at DESC');
+    const rows = await listUsers(undefined, 'u.created_at DESC');
     return rows.map(toCard);
   });
 
@@ -52,7 +51,7 @@ export default async function factionRoutes(app: FastifyInstance) {
         return reply.code(403).send({ error: 'Apenas o fundador altera cargos de liderança' });
       }
 
-      await run('UPDATE users SET role = ? WHERE id = ?', [parsed.data.role, target.id]);
+      await setRole(target.id, parsed.data.role);
       return toCard({ ...target, role: parsed.data.role });
     },
   );
@@ -68,8 +67,8 @@ export default async function factionRoutes(app: FastifyInstance) {
       const target = await findByUsername(req.params.username);
       if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
 
-      const badges = JSON.stringify([...new Set(parsed.data.badges)]);
-      await run('UPDATE users SET badges = ? WHERE id = ?', [badges, target.id]);
+      const badges = [...new Set(parsed.data.badges)];
+      await setBadges(target.id, badges);
       return toCard({ ...target, badges });
     },
   );

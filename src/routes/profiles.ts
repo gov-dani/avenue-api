@@ -5,7 +5,7 @@ import { queryOne, run } from '../db.js';
 import { requireUser } from '../auth.js';
 import { profileSchema } from '../schemas.js';
 import { fetchActivity } from '../presence.js';
-import { applySync, findById, findByUsername, isLinked, toPrivate, toPublic } from '../users.js';
+import { applySync, findById, findByUsername, isLinked, saveProfile, toPrivate, toPublic } from '../users.js';
 
 const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -51,31 +51,8 @@ export default async function profileRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
     const p = parsed.data;
 
-    // Conta sem Discord de verdade (atalho de dev) não tem o que sincronizar
     const linked = isLinked(req.currentUser!);
-    await run(
-      `UPDATE users SET display_name = ?, bio = ?, avatar_url = ?, banner_url = ?, music_url = ?, music_title = ?, avatar_decoration = ?, discord = ?,
-         links = ?, games = ?, gear = ?,
-         sync_avatar = ?, sync_banner = ?, sync_name = ?, show_activity = ? WHERE id = ?`,
-      [
-        p.displayName,
-        p.bio,
-        p.avatarUrl,
-        p.bannerUrl,
-        p.musicUrl,
-        p.musicTitle,
-        p.avatarDecoration,
-        p.discord,
-        JSON.stringify(p.links),
-        JSON.stringify(p.games),
-        JSON.stringify(p.gear),
-        Number(linked && p.syncAvatar),
-        Number(linked && p.syncBanner),
-        Number(linked && p.syncName),
-        Number(p.showActivity),
-        req.currentUser!.id,
-      ],
-    );
+    await saveProfile(req.currentUser!.id, p, linked);
     // O que está marcado para acompanhar o Discord vale mais que o texto enviado
     await applySync(req.currentUser!.id);
     return toPrivate((await findById(req.currentUser!.id))!);
