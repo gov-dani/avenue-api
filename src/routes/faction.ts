@@ -8,7 +8,7 @@ export default async function factionRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: 'Filtro inválido' });
     const { q, role } = parsed.data;
 
-    const rows = await listUsers("u.role != 'visitante'");
+    const rows = await listUsers("u.role != 'visitante' AND u.whitelisted = 1");
 
     const needle = q?.toLowerCase();
     return rows

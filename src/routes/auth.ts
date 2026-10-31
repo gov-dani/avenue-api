@@ -11,7 +11,7 @@ import {
   discordEnabled,
   fetchDiscordUser,
 } from '../discord.js';
-import { loginWithDiscord, toPrivate, type UserRow } from '../users.js';
+import { isWhitelisted, loginWithDiscord, toPrivate, type UserRow } from '../users.js';
 
 const STATE_COOKIE = 'ag_oauth_state';
 // Guarda para onde voltar depois do Discord (ex.: "Sincronizar" no painel)
@@ -26,11 +26,11 @@ export default async function authRoutes(app: FastifyInstance) {
   const fail = (reply: FastifyReply, code: string) =>
     reply.redirect(`${env.WEB_URL}/login?erro=${code}`);
 
-  // Depois do login: perfil novo vai preencher o painel, quem já tem vai para o próprio perfil
+  // Depois do login: perfil novo (ou ainda sem whitelist) vai para o painel, quem já tem link vai para o próprio perfil
   const startSession = (reply: FastifyReply, user: UserRow, created: boolean, back = false) => {
     const token = app.jwt.sign({ id: user.id }, { expiresIn: '30d' });
     reply.setCookie(COOKIE_NAME, token, sessionCookieOptions(isProd));
-    const to = back ? '/painel#discord' : created ? '/painel' : `/${user.username}`;
+    const to = back ? '/painel#discord' : created || !isWhitelisted(user) ? '/painel' : `/${user.username}`;
     return reply.redirect(`${env.WEB_URL}${to}`);
   };
 

@@ -5,14 +5,14 @@ import { queryOne, run } from '../db.js';
 import { requireUser } from '../auth.js';
 import { profileSchema } from '../schemas.js';
 import { fetchActivity } from '../presence.js';
-import { applySync, findById, findByUsername, isLinked, saveProfile, toPrivate, toPublic } from '../users.js';
+import { applySync, findById, findByUsername, isLinked, isWhitelisted, saveProfile, toPrivate, toPublic } from '../users.js';
 
 const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export default async function profileRoutes(app: FastifyInstance) {
   app.get<{ Params: { username: string } }>('/profiles/:username', async (req, reply) => {
     const user = await findByUsername(req.params.username);
-    if (!user) return reply.code(404).send({ error: 'Perfil não encontrado' });
+    if (!user || !isWhitelisted(user)) return reply.code(404).send({ error: 'Perfil não encontrado' });
     return toPublic(user);
   });
 
@@ -23,7 +23,7 @@ export default async function profileRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (req, reply) => {
       const user = await findByUsername(req.params.username);
-      if (!user) return reply.code(204).send();
+      if (!user || !isWhitelisted(user)) return reply.code(204).send();
 
       const viewer = await req.jwtVerify<{ id: number }>().catch(() => null);
       if (viewer?.id === user.id) return reply.code(204).send();
@@ -65,7 +65,7 @@ export default async function profileRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
     async (req, reply) => {
       const user = await findByUsername(req.params.username);
-      if (!user || !user.show_activity || !isLinked(user)) return reply.code(404).send({ error: 'Sem atividade' });
+      if (!user || !isWhitelisted(user) || !user.show_activity || !isLinked(user)) return reply.code(404).send({ error: 'Sem atividade' });
       return fetchActivity(user.discord_id);
     },
   );

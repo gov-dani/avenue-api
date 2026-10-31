@@ -9,15 +9,25 @@ import {
   isGrantable,
   loadCustomBadges,
 } from '../badges.js';
-import { query, queryOne, run } from '../db.js';
-import { adminUserSchema, badgeDefSchema, grantsSchema, profileSchema, RESERVED_USERNAMES } from '../schemas.js';
+import { query, queryOne, run, transaction } from '../db.js';
+import { dmWhitelistApproved, dmWhitelistRejected } from '../notify.js';
+import {
+  adminUserSchema,
+  badgeDefSchema,
+  grantsSchema,
+  profileSchema,
+  whitelistReviewSchema,
+  RESERVED_USERNAMES,
+} from '../schemas.js';
 import {
   ROLES,
   applySync,
   canManage,
   deleteUser,
+  findById,
   findByUsername,
   isLinked,
+  isWhitelisted,
   listUsers,
   saveProfile,
   setBadges,
@@ -27,6 +37,7 @@ import {
   toPrivate,
   type UserRow,
 } from '../users.js';
+import { asRequest, findRequest, listRequests, pendingCount, usernameProblem } from '../whitelist.js';
 
 // Badges que não se concedem à mão: vêm do cargo ou do perfil
 const AUTOMATIC = [
@@ -52,6 +63,7 @@ const asCard = (u: UserRow) => ({
   grants: grantedKeys(u),
   discordId: u.discord_id,
   linked: isLinked(u),
+  whitelisted: isWhitelisted(u),
   views: u.views,
   createdAt: u.created_at,
 });
@@ -201,6 +213,83 @@ export default async function managementRoutes(app: FastifyInstance) {
     await deleteUser(target.id);
     await audit(req.currentUser!, 'conta apagada', target.username, target.display_name);
     return reply.code(204).send();
+  });
+
+  // ---------- Whitelist ----------
+  app.get('/management/whitelist', async () => {
+    const rows = await listRequests();
+    return {
+      pending: await pendingCount(),
+      items: rows.map((r) => ({
+        ...asRequest(r),
+        userId: r.user_id,
+        discordId: r.discord_id,
+        currentUsername: r.current_username,
+        displayName: r.display_name,
+        avatarUrl: r.avatar_url,
+      })),
+    };
+  });
+
+  // Aprova: o @ pedido vira o link da pessoa, o perfil fica público e o resultado vai por DM
+  app.post<{ Params: { id: string } }>('/management/whitelist/:id/approve', async (req, reply) => {
+    const parsed = whitelistReviewSchema.safeParse(req.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
+
+    const request = await findRequest(Number(req.params.id));
+    if (!request) return reply.code(404).send({ error: 'Pedido não encontrado' });
+    if (request.status !== 'pending') return reply.code(409).send({ error: 'Este pedido já foi decidido' });
+
+    const target = await findById(request.user_id);
+    if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
+
+    const username = parsed.data.username ?? request.username;
+    const problem = await usernameProblem(username, target.id, request.id);
+    if (problem) return reply.code(409).send({ error: problem });
+
+    const actor = req.currentUser!;
+    try {
+      await transaction(async (tx) => {
+        // O WHERE garante que dois cliques seguidos não aprovem (e avisem) duas vezes
+        const res = await tx(
+          "UPDATE whitelist_requests SET status = 'approved', username = ?, reviewed_by = ?, reviewed_at = UTC_TIMESTAMP() WHERE id = ? AND status = 'pending'",
+          [username, actor.username, request.id],
+        );
+        if (res.affectedRows === 0) throw new Error('decidido');
+        await tx('UPDATE users SET username = ?, whitelisted = 1 WHERE id = ?', [username, target.id]);
+      });
+    } catch (err) {
+      const code = (err as { errno?: number }).errno;
+      if (code === 1062) return reply.code(409).send({ error: 'Esse @usuário já está em uso' });
+      if ((err as Error).message === 'decidido') return reply.code(409).send({ error: 'Este pedido já foi decidido' });
+      throw err;
+    }
+
+    await audit(actor, 'whitelist aprovada', target.username === username ? username : `${target.username} → ${username}`, request.message);
+    const dm = await dmWhitelistApproved(target.discord_id, username, req.log);
+    return { ok: true, dm, username };
+  });
+
+  app.post<{ Params: { id: string } }>('/management/whitelist/:id/reject', async (req, reply) => {
+    const parsed = whitelistReviewSchema.safeParse(req.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
+    const reason = parsed.data.reason ?? '';
+
+    const request = await findRequest(Number(req.params.id));
+    if (!request) return reply.code(404).send({ error: 'Pedido não encontrado' });
+    const target = await findById(request.user_id);
+    if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
+
+    const actor = req.currentUser!;
+    const res = await run(
+      "UPDATE whitelist_requests SET status = 'rejected', reason = ?, reviewed_by = ?, reviewed_at = UTC_TIMESTAMP() WHERE id = ? AND status = 'pending'",
+      [reason, actor.username, request.id],
+    );
+    if (res.affectedRows === 0) return reply.code(409).send({ error: 'Este pedido já foi decidido' });
+
+    await audit(actor, 'whitelist recusada', request.username, reason);
+    const dm = await dmWhitelistRejected(target.discord_id, reason, req.log);
+    return { ok: true, dm };
   });
 
   // ---------- Badges ----------
