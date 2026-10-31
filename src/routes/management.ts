@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import type { FastifyInstance } from 'fastify';
 import { requireManager } from '../auth.js';
+import { backupPath, listBackups, runBackup } from '../backup.js';
 import {
   GRANTABLE,
   customBadges,
@@ -376,6 +378,37 @@ export default async function managementRoutes(app: FastifyInstance) {
   });
 
   // ---------- Histórico ----------
+  // ---------- Backups do banco ----------
+  app.get('/management/backups', async () => listBackups());
+
+  app.post('/management/backups', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } } }, async (req, reply) => {
+    try {
+      const made = await runBackup();
+      await audit(req.currentUser!, 'backup criado', made.name);
+      return made;
+    } catch (err) {
+      req.log.error(err, 'falha ao criar o backup');
+      return reply.code(500).send({ error: 'Não foi possível criar o backup. O mysqldump está instalado na VPS?' });
+    }
+  });
+
+  app.get<{ Params: { name: string } }>(
+    '/management/backups/:name',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const path = backupPath(req.params.name);
+      if (!path || !(await listBackups()).some((b) => b.name === req.params.name)) {
+        return reply.code(404).send({ error: 'Backup não encontrado' });
+      }
+      await audit(req.currentUser!, 'backup baixado', req.params.name);
+      return reply
+        .header('Content-Type', 'application/sql')
+        .header('Content-Disposition', `attachment; filename="${req.params.name}"`)
+        .header('Cache-Control', 'no-store')
+        .send(createReadStream(path));
+    },
+  );
+
   app.get('/management/audit', async () =>
     query<{ id: number; actor: string; action: string; target: string; detail: string; created_at: string }>(
       'SELECT id, actor, action, target, detail, created_at FROM audit_log ORDER BY id DESC LIMIT 200',

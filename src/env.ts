@@ -16,6 +16,9 @@ const schema = z
     DB_PASSWORD: z.string().default(''),
     DB_NAME: z.string().default('avenue'),
     // Onde ficam banners, fotos e músicas enviados pelos usuários
+    // Backups do banco (.sql), um por dia; BACKUP_KEEP é quantos ficam guardados
+    BACKUP_DIR: z.string().default('./data/backups'),
+    BACKUP_KEEP: z.coerce.number().int().min(1).default(14),
     // Chave do Fivemanage (https://fivemanage.com): quando definida, as imagens enviadas vão para lá
     FIVEMANAGE_API_KEY: z.string().optional(),
     UPLOAD_DIR: z.string().default('./data/uploads'),

@@ -8,8 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/*.test.ts",
-    "backup": "node --env-file=.env scripts/backup-db.mjs"
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "engines": {
     "node": ">=20"
