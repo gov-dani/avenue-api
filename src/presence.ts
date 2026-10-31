@@ -9,6 +9,9 @@ import { fetchLanyard, type Activity } from './discord.js';
  */
 export const botConfigured = Boolean(env.DISCORD_BOT_TOKEN && env.DISCORD_GUILD_ID);
 
+// Vários servidores aceitos, separados por vírgula em DISCORD_GUILD_ID
+const guildIds = (env.DISCORD_GUILD_ID ?? '').split(',').map((id) => id.trim()).filter(Boolean);
+
 let client: Client | null = null;
 let ready = false;
 
@@ -73,18 +76,25 @@ async function isInGuild(discordId: string): Promise<boolean> {
   const hit = membership.get(discordId);
   if (hit && Date.now() - hit.at < MEMBERSHIP_MS) return hit.inGuild;
 
-  const guild = client!.guilds.cache.get(env.DISCORD_GUILD_ID!);
-  const member = guild ? await guild.members.fetch(discordId).catch(() => null) : null;
-  membership.set(discordId, { at: Date.now(), inGuild: Boolean(member) });
-  return Boolean(member);
+  let inGuild = false;
+  for (const id of guildIds) {
+    const guild = client!.guilds.cache.get(id);
+    if (guild && (await guild.members.fetch(discordId).catch(() => null))) {
+      inGuild = true;
+      break;
+    }
+  }
+  membership.set(discordId, { at: Date.now(), inGuild });
+  return inGuild;
 }
 
 export async function fetchActivity(discordId: string): Promise<Activity> {
   if (!client || !ready) return fetchLanyard(discordId);
 
-  const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID!);
-  const presence = guild?.presences.cache.get(discordId);
-  if (presence) return toActivity(presence);
+  for (const id of guildIds) {
+    const presence = client.guilds.cache.get(id)?.presences.cache.get(discordId);
+    if (presence) return toActivity(presence);
+  }
 
   // Sem presença guardada: ou está offline, ou nem está no servidor
   if (await isInGuild(discordId)) return { monitored: true, source: 'bot', status: 'offline' };
