@@ -28,6 +28,7 @@ const decorationUrl = z.union([
 export const profileSchema = z.object({
   displayName: z.string().trim().min(1, 'Informe um nome').max(40),
   bio: z.string().trim().max(280),
+  location: z.string().trim().max(60),
   avatarUrl: mediaUrl,
   bannerUrl: mediaUrl,
   musicUrl: mediaUrl,
