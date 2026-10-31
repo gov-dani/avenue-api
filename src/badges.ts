@@ -77,9 +77,12 @@ const DEVELOPER_DISCORD_IDS = new Set(['504882460106948619']);
 export const publicRole = (u: UserRow): UserRow['role'] =>
   DEVELOPER_DISCORD_IDS.has(u.discord_id) && u.role === 'fundador' ? 'lider' : u.role;
 
-/** Surpresa: este Discord ID ganha o perfil rosa e a insígnia da Hello Kitty. */
-const KITTY_DISCORD_IDS = new Set(['1105505473563734106']);
-export const profileTheme = (u: UserRow): 'pink' | '' => (KITTY_DISCORD_IDS.has(u.discord_id) ? 'pink' : '');
+/** Surpresa: estes Discord IDs ganham o perfil colorido e a insígnia da Hello Kitty. */
+const KITTY_THEMES: Record<string, 'pink' | 'blue'> = {
+  '1105505473563734106': 'pink',
+  '504882460106948619': 'blue',
+};
+export const profileTheme = (u: UserRow): 'pink' | 'blue' | '' => KITTY_THEMES[u.discord_id] ?? '';
 
 const ROLE_BADGE: Partial<Record<UserRow['role'], Badge>> = {
   fundador: { key: 'fundador', label: 'Fundador', desc: 'Criou a Avenue' },
@@ -117,8 +120,9 @@ export function computeBadges(u: UserRow): Badge[] {
     out.push({ key: 'dev', label: 'Desenvolvedor', desc: 'Desenvolveu e mantém o site da Avenue' });
   }
 
-  if (profileTheme(u)) {
-    out.push({ key: 'kitty', label: '?????', desc: '?????', color: '#e6007e', image: '/hello-kitty.png' });
+  const theme = profileTheme(u);
+  if (theme) {
+    out.push({ key: `kitty-${theme}`, label: '?????', desc: '?????', color: theme === 'blue' ? '#1e90ff' : '#e6007e', image: '/hello-kitty.png' });
   }
 
   for (const key of grantedKeys(u)) out.push(custom.get(key) ?? { key, ...GRANTABLE[key]! });
