@@ -25,6 +25,9 @@ const schema = z
     FIVEMANAGE_API_KEY: z.string().optional(),
     // Chave da HenrikDev (https://api.henrikdev.xyz/dashboard): puxa o rank do Valorant. Sem ela o perfil mostra só o Riot ID e o link do tracker.gg
     HENRIK_API_KEY: z.string().optional(),
+    // Aplicativo da Twitch (https://dev.twitch.tv/console/apps): vincula canais e mostra "ao vivo". Sem os dois, a aba Twitch fica desligada
+    TWITCH_CLIENT_ID: z.string().optional(),
+    TWITCH_CLIENT_SECRET: z.string().optional(),
     UPLOAD_DIR: z.string().default('./data/uploads'),
     // Aplicativo OAuth2 criado em https://discord.com/developers/applications
     DISCORD_CLIENT_ID: z.string().optional(),

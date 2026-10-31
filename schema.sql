@@ -9,6 +9,7 @@
 --   user_links       links do perfil
 --   user_roblox      conta do Roblox vinculada (verificada pela bio)
 --   user_valorant    Riot ID do Valorant e rank
+--   user_twitch      canal da Twitch vinculado (verificado pela bio do canal)
 --   user_games       jogos
 --   user_gear        equipamentos do setup
 --   user_badges      badges concedidas pela liderança
@@ -120,6 +121,24 @@ CREATE TABLE IF NOT EXISTS user_valorant (
   peak_tier    VARCHAR(30)  NOT NULL DEFAULT '',
   peak_tier_id INT          NOT NULL DEFAULT 0,
   synced_at    DATETIME     NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Canal da Twitch vinculado. twitch_id só é preenchido depois que a pessoa prova que o canal é dela
+-- (código colado na bio do canal). Enquanto isso, o pedido fica em pending_*
+CREATE TABLE IF NOT EXISTS user_twitch (
+  user_id          INT UNSIGNED NOT NULL PRIMARY KEY,
+  twitch_id        VARCHAR(20)  NULL UNIQUE,
+  login            VARCHAR(32)  NOT NULL DEFAULT '',
+  display_name     VARCHAR(64)  NOT NULL DEFAULT '',
+  avatar_url       VARCHAR(500) NOT NULL DEFAULT '',
+  broadcaster_type VARCHAR(12)  NOT NULL DEFAULT '',
+  account_created  VARCHAR(30)  NOT NULL DEFAULT '',
+  synced_at        DATETIME     NULL,
+  pending_id       VARCHAR(20)  NULL,
+  pending_login    VARCHAR(32)  NOT NULL DEFAULT '',
+  pending_code     VARCHAR(24)  NOT NULL DEFAULT '',
+  pending_at       DATETIME     NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -69,6 +69,16 @@ export interface UserRow {
   roblox_pending_username: string;
   roblox_pending_code: string;
   roblox_pending_at: string | null;
+  // user_twitch (twitch_id é null até o canal ser verificado)
+  twitch_id: string | null;
+  twitch_login: string;
+  twitch_display_name: string;
+  twitch_avatar: string;
+  twitch_type: string;
+  twitch_created: string;
+  twitch_pending_login: string;
+  twitch_pending_code: string;
+  twitch_pending_at: string | null;
   // user_valorant (valorant_name vazio = sem Riot ID)
   valorant_name: string;
   valorant_tag: string;
@@ -103,6 +113,10 @@ const SELECT_USER = `
          COALESCE(r.followers, 0) AS roblox_followers, COALESCE(r.account_created, '') AS roblox_created,
          COALESCE(r.pending_username, '') AS roblox_pending_username, COALESCE(r.pending_code, '') AS roblox_pending_code,
          r.pending_at AS roblox_pending_at,
+         t.twitch_id, COALESCE(t.login, '') AS twitch_login, COALESCE(t.display_name, '') AS twitch_display_name,
+         COALESCE(t.avatar_url, '') AS twitch_avatar, COALESCE(t.broadcaster_type, '') AS twitch_type,
+         COALESCE(t.account_created, '') AS twitch_created, COALESCE(t.pending_login, '') AS twitch_pending_login,
+         COALESCE(t.pending_code, '') AS twitch_pending_code, t.pending_at AS twitch_pending_at,
          COALESCE(v.name, '') AS valorant_name, COALESCE(v.tag, '') AS valorant_tag, COALESCE(v.region, '') AS valorant_region,
          COALESCE(v.level, 0) AS valorant_level, COALESCE(v.card_url, '') AS valorant_card, COALESCE(v.tier, '') AS valorant_tier,
          COALESCE(v.tier_id, 0) AS valorant_tier_id, COALESCE(v.rr, 0) AS valorant_rr,
@@ -111,6 +125,7 @@ const SELECT_USER = `
   JOIN user_profiles p ON p.user_id = u.id
   JOIN user_discord d ON d.user_id = u.id
   LEFT JOIN user_roblox r ON r.user_id = u.id
+  LEFT JOIN user_twitch t ON t.user_id = u.id
   LEFT JOIN user_valorant v ON v.user_id = u.id`;
 
 /** Anexa as listas (links, jogos, equipamentos, badges) de vários usuários de uma vez. */
@@ -324,6 +339,16 @@ export function toPublic(u: UserRow) {
           url: `https://www.roblox.com/users/${u.roblox_id}/profile`,
         }
       : null,
+    twitch: u.twitch_id
+      ? {
+          login: u.twitch_login,
+          displayName: u.twitch_display_name,
+          avatarUrl: u.twitch_avatar,
+          broadcasterType: u.twitch_type,
+          createdAt: u.twitch_created,
+          url: `https://www.twitch.tv/${u.twitch_login}`,
+        }
+      : null,
     valorant: u.valorant_name
       ? {
           riotId: `${u.valorant_name}#${u.valorant_tag}`,
@@ -356,12 +381,15 @@ export const WHITELISTED_SQL = `(u.whitelisted = 1 OR u.discord_id IN (${[...MAN
 export const isWhitelisted = (u: UserRow) => Boolean(u.whitelisted) || canManage(u);
 
 /** Pedido de vínculo ainda esperando o código na bio (vence em CODE_TTL_MIN minutos). */
-function pendingRoblox(u: UserRow) {
-  if (!u.roblox_pending_code || !u.roblox_pending_at) return null;
-  const expiresAt = Date.parse(u.roblox_pending_at.replace(' ', 'T') + 'Z') + CODE_TTL_MIN * 60_000;
+function pendingCode(username: string, code: string, at: string | null) {
+  if (!code || !at) return null;
+  const expiresAt = Date.parse(at.replace(' ', 'T') + 'Z') + CODE_TTL_MIN * 60_000;
   if (Number.isNaN(expiresAt) || expiresAt < Date.now()) return null;
-  return { username: u.roblox_pending_username, code: u.roblox_pending_code, expiresAt: new Date(expiresAt).toISOString() };
+  return { username, code, expiresAt: new Date(expiresAt).toISOString() };
 }
+
+const pendingRoblox = (u: UserRow) => pendingCode(u.roblox_pending_username, u.roblox_pending_code, u.roblox_pending_at);
+const pendingTwitch = (u: UserRow) => pendingCode(u.twitch_pending_login, u.twitch_pending_code, u.twitch_pending_at);
 
 export const toPrivate = (u: UserRow) => ({
   ...toPublic(u),
@@ -375,6 +403,9 @@ export const toPrivate = (u: UserRow) => ({
   syncName: Boolean(u.sync_name),
   showActivity: Boolean(u.show_activity),
   robloxPending: pendingRoblox(u),
+  twitchPending: pendingTwitch(u),
+  /** O site tem as chaves da Twitch: dá para vincular canais */
+  twitchEnabled: Boolean(env.TWITCH_CLIENT_ID && env.TWITCH_CLIENT_SECRET),
   /** O site tem chave da HenrikDev: o rank é puxado sozinho */
   valorantRank: Boolean(env.HENRIK_API_KEY),
   discordAccount: {

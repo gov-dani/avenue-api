@@ -15,6 +15,7 @@ import managementRoutes from './routes/management.js';
 import mediaRoutes from './routes/media.js';
 import profileRoutes from './routes/profiles.js';
 import robloxRoutes from './routes/roblox.js';
+import twitchRoutes from './routes/twitch.js';
 import valorantRoutes from './routes/valorant.js';
 import whitelistRoutes from './routes/whitelist.js';
 
@@ -47,6 +48,7 @@ app.get('/health', async () => ({ ok: true }));
 await app.register(authRoutes);
 await app.register(profileRoutes);
 await app.register(robloxRoutes);
+await app.register(twitchRoutes);
 await app.register(valorantRoutes);
 await app.register(whitelistRoutes);
 await app.register(mediaRoutes);
