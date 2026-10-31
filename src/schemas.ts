@@ -70,7 +70,7 @@ export const badgeDefSchema = z.object({
   desc: z.string().trim().max(120),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida'),
   // Um dos ícones prontos ou "pacote:nome" de um ícone do allsvgicons.com
-  icon: z.union([z.enum(BADGE_ICONS), z.literal('upload'), z.string().regex(/^[a-z0-9-]{1,20}:[a-z0-9-]{1,26}$/)]),
+  icon: z.union([z.enum(BADGE_ICONS), z.literal('upload'), z.string().regex(/^[a-z0-9-]{1,40}:[a-z0-9_.-]{1,80}$/, 'Ícone inválido')]),
   // Texto de um .svg enviado pelo dono (vira icon = 'upload')
   svgFile: z.string().max(40_000).optional(),
 });
