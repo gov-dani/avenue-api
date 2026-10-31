@@ -47,3 +47,32 @@ describe('roblox', () => {
     await assert.rejects(findByName('abc'), /esperar/);
   });
 });
+
+describe('roblox presença', () => {
+  const presence = (type: number, extra = {}) =>
+    json({ userPresences: [{ userPresenceType: type, lastLocation: 'Blox Fruits', rootPlaceId: 2753915549, universeId: 994732206, ...extra }] });
+
+  it('reconhece online, jogando (com nome e ícone) e offline', async () => {
+    const { fetchPresence } = await import('../src/roblox.ts');
+
+    mock.method(globalThis, 'fetch', async () => presence(1));
+    assert.deepEqual(await fetchPresence('101'), { status: 'online' });
+
+    mock.method(globalThis, 'fetch', async (url: string | URL | Request) =>
+      String(url).includes('thumbnails') ? json({ data: [{ state: 'Completed', imageUrl: 'https://tr.rbxcdn.com/x' }] }) : presence(2),
+    );
+    assert.deepEqual(await fetchPresence('102'), {
+      status: 'playing',
+      game: { name: 'Blox Fruits', placeId: '2753915549', iconUrl: 'https://tr.rbxcdn.com/x' },
+    });
+
+    mock.method(globalThis, 'fetch', async () => presence(0));
+    assert.deepEqual(await fetchPresence('103'), { status: 'offline' });
+  });
+
+  it('jogo escondido vira só "jogando"', async () => {
+    const { fetchPresence } = await import('../src/roblox.ts');
+    mock.method(globalThis, 'fetch', async () => presence(2, { rootPlaceId: null, universeId: null, lastLocation: '' }));
+    assert.deepEqual(await fetchPresence('104'), { status: 'playing' });
+  });
+});

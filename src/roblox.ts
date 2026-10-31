@@ -76,3 +76,51 @@ export async function fetchSnapshot(id: string): Promise<RobloxSnapshot> {
 
 /** Código que a pessoa cola na bio do Roblox para provar que a conta é dela. */
 export const newCode = () => `avenue-${randomBytes(4).toString('hex')}`;
+
+export interface RobloxPresence {
+  status: 'offline' | 'online' | 'playing' | 'studio';
+  game?: { name: string; placeId: string; iconUrl: string };
+}
+
+// A página consulta a cada 30s: guardar a resposta por um tempo poupa o Roblox
+const PRESENCE_MS = 25_000;
+const presenceCache = new Map<string, { at: number; value: RobloxPresence }>();
+
+/** Se a pessoa está online ou jogando agora. Quem escondeu o status no Roblox aparece como offline. */
+export async function fetchPresence(id: string): Promise<RobloxPresence> {
+  const hit = presenceCache.get(id);
+  if (hit && Date.now() - hit.at < PRESENCE_MS) return hit.value;
+
+  const res = await getJson<{
+    userPresences: { userPresenceType: number; lastLocation: string; rootPlaceId: number | null; universeId: number | null }[];
+  }>('https://presence.roblox.com/v1/presence/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userIds: [Number(id)] }),
+  });
+
+  const p = res.userPresences[0];
+  let value: RobloxPresence = { status: 'offline' };
+  if (p?.userPresenceType === 1) value = { status: 'online' };
+  else if (p?.userPresenceType === 3) value = { status: 'studio' };
+  else if (p?.userPresenceType === 2) {
+    // Jogo escondido (o dono bloqueou o "entrar") vem sem lugar: mostramos só que está jogando
+    value = { status: 'playing' };
+    if (p.rootPlaceId && p.lastLocation) {
+      const icon = p.universeId
+        ? await getJson<{ data: { imageUrl?: string; state: string }[] }>(
+            `https://thumbnails.roblox.com/v1/games/icons?universeIds=${p.universeId}&size=128x128&format=Png`,
+          ).catch(() => null)
+        : null;
+      const thumb = icon?.data[0];
+      value.game = {
+        name: p.lastLocation,
+        placeId: String(p.rootPlaceId),
+        iconUrl: thumb?.state === 'Completed' && thumb.imageUrl ? thumb.imageUrl : '',
+      };
+    }
+  }
+
+  presenceCache.set(id, { at: Date.now(), value });
+  return value;
+}

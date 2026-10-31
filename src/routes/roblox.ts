@@ -2,9 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { requireWhitelisted } from '../auth.js';
 import { queryOne, run } from '../db.js';
-import { ROBLOX_NAME, RobloxError, fetchSnapshot, findByName, newCode } from '../roblox.js';
+import { ROBLOX_NAME, RobloxError, fetchPresence, fetchSnapshot, findByName, newCode } from '../roblox.js';
 import { saveSnapshot } from '../roblox-store.js';
-import { findById, toPrivate } from '../users.js';
+import { findById, findByUsername, isWhitelisted, toPrivate } from '../users.js';
 
 const startSchema = z.object({
   username: z.string().trim().regex(ROBLOX_NAME, 'Use o @ do Roblox: de 3 a 20 letras, números ou _'),
@@ -19,6 +19,13 @@ export default async function robloxRoutes(app: FastifyInstance) {
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof RobloxError) return reply.code(502).send({ error: err.message });
     reply.send(err);
+  });
+
+  // O que a pessoa está jogando no Roblox agora. Público, como o resto do perfil
+  app.get<{ Params: { username: string } }>('/profiles/:username/roblox', limit(60), async (req, reply) => {
+    const user = await findByUsername(req.params.username);
+    if (!user || !isWhitelisted(user) || !user.roblox_id) return reply.code(404).send({ error: 'Sem Roblox' });
+    return fetchPresence(user.roblox_id);
   });
 
   // Passo 1: a pessoa diz qual conta é a dela e recebe um código para colar na bio do Roblox
