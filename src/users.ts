@@ -264,9 +264,14 @@ export function toPublic(u: UserRow) {
   };
 }
 
+// Discord IDs com acesso à gestão (/management). Por ora, só o dono.
+const MANAGER_DISCORD_IDS = new Set(['504882460106948619']);
+export const canManage = (u: UserRow) => MANAGER_DISCORD_IDS.has(u.discord_id);
+
 export const toPrivate = (u: UserRow) => ({
   ...toPublic(u),
   id: u.id,
+  canManage: canManage(u),
   syncAvatar: Boolean(u.sync_avatar),
   syncBanner: Boolean(u.sync_banner),
   syncName: Boolean(u.sync_name),

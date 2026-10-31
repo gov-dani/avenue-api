@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { requireAdmin } from '../auth.js';
+import { requireManager } from '../auth.js';
 import { grantsSchema, memberRoleSchema, membersQuerySchema } from '../schemas.js';
 import { ROLE_RANK, findByUsername, listUsers, setBadges, setRole, toCard } from '../users.js';
 
@@ -28,28 +28,20 @@ export default async function factionRoutes(app: FastifyInstance) {
   });
 
   // Lista todos os cadastros (inclusive visitantes) para o painel de administração
-  app.get('/faction/users', { preHandler: requireAdmin }, async () => {
+  app.get('/faction/users', { preHandler: requireManager }, async () => {
     const rows = await listUsers(undefined, 'u.created_at DESC');
     return rows.map(toCard);
   });
 
   app.patch<{ Params: { username: string } }>(
     '/faction/members/:username',
-    { preHandler: requireAdmin },
+    { preHandler: requireManager },
     async (req, reply) => {
       const parsed = memberRoleSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: 'Cargo inválido' });
 
-      const actor = req.currentUser!;
       const target = await findByUsername(req.params.username);
       if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
-
-      // Só o fundador mexe em cargos de liderança
-      const newRank = ROLE_RANK[parsed.data.role];
-      const touchesLeadership = newRank >= ROLE_RANK.lider || ROLE_RANK[target.role] >= ROLE_RANK.lider;
-      if (touchesLeadership && actor.role !== 'fundador') {
-        return reply.code(403).send({ error: 'Apenas o fundador altera cargos de liderança' });
-      }
 
       await setRole(target.id, parsed.data.role);
       return toCard({ ...target, role: parsed.data.role });
@@ -59,7 +51,7 @@ export default async function factionRoutes(app: FastifyInstance) {
   // Badges especiais concedidas pela liderança (Avenue Girls, Parceiro, VIP, Campeão)
   app.put<{ Params: { username: string } }>(
     '/faction/members/:username/badges',
-    { preHandler: requireAdmin },
+    { preHandler: requireManager },
     async (req, reply) => {
       const parsed = grantsSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: 'Badge inválida' });

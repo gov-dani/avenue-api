@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { findById, isAdmin, type UserRow } from './users.js';
+import { canManage, findById, type UserRow } from './users.js';
 
 export const COOKIE_NAME = 'ag_session';
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
@@ -32,8 +32,8 @@ export async function requireUser(req: FastifyRequest, reply: FastifyReply) {
   req.currentUser = user;
 }
 
-export async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
+export async function requireManager(req: FastifyRequest, reply: FastifyReply) {
   const denied = await requireUser(req, reply);
   if (denied) return denied;
-  if (!isAdmin(req.currentUser!.role)) return reply.code(403).send({ error: 'Sem permissão' });
+  if (!canManage(req.currentUser!)) return reply.code(403).send({ error: 'Sem permissão' });
 }
