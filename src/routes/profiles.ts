@@ -5,7 +5,7 @@ import { queryOne, run } from '../db.js';
 import { requireWhitelisted } from '../auth.js';
 import { profileSchema } from '../schemas.js';
 import { fetchActivity } from '../presence.js';
-import { applySync, findById, findByUsername, isLinked, isWhitelisted, saveProfile, toPrivate, toPublic } from '../users.js';
+import { WHITELISTED_SQL, applySync, findById, findByUsername, isLinked, isWhitelisted, saveProfile, toPrivate, toPublic } from '../users.js';
 
 const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -75,7 +75,7 @@ export default async function profileRoutes(app: FastifyInstance) {
     const row = (await queryOne<{ profiles: number; members: string | null }>(
       `SELECT COUNT(*) AS profiles,
               SUM(CASE WHEN role != 'visitante' THEN 1 ELSE 0 END) AS members
-       FROM users WHERE whitelisted = 1`,
+       FROM users u WHERE ${WHITELISTED_SQL}`,
     ))!;
     return { profiles: Number(row.profiles), members: Number(row.members ?? 0) };
   });

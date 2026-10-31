@@ -282,6 +282,9 @@ export function toPublic(u: UserRow) {
 const MANAGER_DISCORD_IDS = new Set(['504882460106948619', '257980670310088705']);
 export const canManage = (u: UserRow) => MANAGER_DISCORD_IDS.has(u.discord_id);
 
+/** Mesma regra de isWhitelisted, para usar em consultas (gestores têm perfil mesmo sem pedir a whitelist). */
+export const WHITELISTED_SQL = `(u.whitelisted = 1 OR u.discord_id IN (${[...MANAGER_DISCORD_IDS].map((id) => `'${id}'`).join(', ')}))`;
+
 /** Só quem passou pela whitelist (ou é da gestão) tem perfil público. */
 export const isWhitelisted = (u: UserRow) => Boolean(u.whitelisted) || canManage(u);
 
