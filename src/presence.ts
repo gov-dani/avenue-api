@@ -53,7 +53,11 @@ export function startPresenceBot(log: FastifyBaseLogger) {
   }
 
   // Só precisa de Guilds e GuildPresences (esta última é "privileged": ativar no portal)
-  client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildPresences] });
+  // Invisível: aparece offline no Discord, mas continua recebendo a presença dos membros
+  client = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildPresences],
+    presence: { status: 'invisible' },
+  });
   client.on('error', (err) => log.error(err, 'bot de presença'));
   client.once('clientReady', (c) => {
     ready = true;
