@@ -3,7 +3,7 @@ import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
-import { env } from './env.js';
+import { env, isProd } from './env.js';
 import { COOKIE_NAME } from './auth.js';
 import './db.js';
 import { grantEventBadge, loadCustomBadges } from './badges.js';
@@ -28,6 +28,16 @@ await app.register(jwt, {
   cookie: { cookieName: COOKIE_NAME, signed: false },
 });
 await app.register(rateLimit, { global: true, max: 120, timeWindow: '1 minute' });
+
+// A API só devolve JSON/mídia: cabeçalhos que travam o que o navegador poderia fazer com ela
+app.addHook('onSend', async (_req, reply) => {
+  reply
+    .header('X-Content-Type-Options', 'nosniff')
+    .header('X-Frame-Options', 'DENY')
+    .header('Referrer-Policy', 'no-referrer')
+    .header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+  if (isProd) reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+});
 
 app.get('/health', async () => ({ ok: true }));
 

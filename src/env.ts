@@ -16,6 +16,8 @@ const schema = z
     DB_PASSWORD: z.string().default(''),
     DB_NAME: z.string().default('avenue'),
     // Onde ficam banners, fotos e músicas enviados pelos usuários
+    // Chave do Fivemanage (https://fivemanage.com): quando definida, as imagens enviadas vão para lá
+    FIVEMANAGE_API_KEY: z.string().optional(),
     UPLOAD_DIR: z.string().default('./data/uploads'),
     // Aplicativo OAuth2 criado em https://discord.com/developers/applications
     DISCORD_CLIENT_ID: z.string().optional(),
