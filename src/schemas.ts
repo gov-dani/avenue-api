@@ -28,9 +28,13 @@ const decorationUrl = z.union([
 // Estilos do nome (efeitos em CSS no site). A lista com os rótulos fica em web/lib/namestyles.ts
 export const NAME_STYLES = ['', 'ouro', 'fogo', 'oceano', 'aurora', 'neon', 'gelo', 'toxico', 'galaxia', 'glitch', 'cromo'] as const;
 
+// Fontes do nome. Os rótulos e o CSS de cada uma ficam em web/lib/namestyles.ts
+export const NAME_FONTS = ['', 'poppins', 'fantasia', 'classica', 'elegante', 'cursiva', 'manuscrita', 'grafite', 'tech', 'retro', 'terror', 'pixel', 'redonda'] as const;
+
 export const profileSchema = z.object({
   displayName: z.string().trim().min(1, 'Informe um nome').max(40),
   nameStyle: z.enum(NAME_STYLES),
+  nameFont: z.enum(NAME_FONTS),
   bio: z.string().trim().max(280),
   location: z.string().trim().max(60),
   avatarUrl: mediaUrl,

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   music_title       VARCHAR(100) NOT NULL DEFAULT '',
   avatar_decoration VARCHAR(64)  NOT NULL DEFAULT '',
   name_style        VARCHAR(24)  NOT NULL DEFAULT '',
+  name_font         VARCHAR(24)  NOT NULL DEFAULT '',
   show_activity     TINYINT      NOT NULL DEFAULT 1,
   show_views        TINYINT      NOT NULL DEFAULT 1,
   link_layout       VARCHAR(10)  NOT NULL DEFAULT 'list',
@@ -55,6 +56,7 @@ ALTER TABLE user_profiles ADD COLUMN show_views TINYINT NOT NULL DEFAULT 1;
 ALTER TABLE user_profiles ADD COLUMN link_layout VARCHAR(10) NOT NULL DEFAULT 'list';
 ALTER TABLE user_profiles ADD COLUMN location VARCHAR(80) NOT NULL DEFAULT '';
 ALTER TABLE user_profiles ADD COLUMN name_style VARCHAR(24) NOT NULL DEFAULT '';
+ALTER TABLE user_profiles ADD COLUMN name_font VARCHAR(24) NOT NULL DEFAULT '';
 
 -- Dados vindos do Discord e o que do perfil acompanha a conta
 CREATE TABLE IF NOT EXISTS user_discord (
