@@ -26,6 +26,12 @@ export function parseRiotId(raw: string): { name: string; tag: string } | { erro
   return { name, tag };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A API manda só o UUID do card; a arte vem do valorant-api.com. Qualquer outra coisa vira "sem imagem". */
+export const cardUrl = (id: unknown) =>
+  typeof id === 'string' && UUID.test(id) ? `https://media.valorant-api.com/playercards/${id.toLowerCase()}/smallart.png` : '';
+
 export const trackerUrl = (name: string, tag: string) =>
   `https://tracker.gg/valorant/profile/riot/${encodeURIComponent(`${name}#${tag}`)}/overview`;
 
@@ -67,8 +73,7 @@ export async function fetchSnapshot(name: string, tag: string, key: string): Pro
     tag: account.tag,
     region: REGIONS.has(account.region) ? account.region : '',
     level: account.account_level,
-    // A arte do card vem como texto solto da API: só aceitamos HTTPS
-    cardUrl: typeof account.card === 'string' && account.card.startsWith('https://') ? account.card : '',
+    cardUrl: cardUrl(account.card),
     tier: '',
     tierId: 0,
     rr: 0,
