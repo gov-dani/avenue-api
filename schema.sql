@@ -44,11 +44,13 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   avatar_decoration VARCHAR(64)  NOT NULL DEFAULT '',
   show_activity     TINYINT      NOT NULL DEFAULT 1,
   show_views        TINYINT      NOT NULL DEFAULT 1,
+  link_layout       VARCHAR(10)  NOT NULL DEFAULT 'list',
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bancos criados antes de show_views (o erro de coluna repetida é ignorado ao subir)
 ALTER TABLE user_profiles ADD COLUMN show_views TINYINT NOT NULL DEFAULT 1;
+ALTER TABLE user_profiles ADD COLUMN link_layout VARCHAR(10) NOT NULL DEFAULT 'list';
 
 -- Dados vindos do Discord e o que do perfil acompanha a conta
 CREATE TABLE IF NOT EXISTS user_discord (

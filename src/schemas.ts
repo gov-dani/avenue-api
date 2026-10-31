@@ -38,6 +38,7 @@ export const profileSchema = z.object({
   syncName: z.boolean(),
   showActivity: z.boolean(),
   showViews: z.boolean(),
+  linkLayout: z.enum(['list', 'grid', 'icons']),
   discord: z.string().trim().max(120),
   links: z
     .array(z.object({ label: z.string().trim().min(1).max(40), url: httpUrl }))
