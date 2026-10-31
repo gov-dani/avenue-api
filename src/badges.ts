@@ -71,7 +71,7 @@ export const GRANTABLE: Record<string, Omit<Badge, 'key'>> = {
 };
 
 /** Badge exclusiva, atribuída pelo Discord ID e não pela liderança. */
-const DEVELOPER_DISCORD_IDS = new Set(['504882460106948619']);
+const DEVELOPER_DISCORD_IDS = new Set(['504882460106948619', '523635929819250698']);
 
 /** Cargo exibido ao público: o desenvolvedor não é o fundador, então aparece como liderança. */
 export const publicRole = (u: UserRow): UserRow['role'] =>
