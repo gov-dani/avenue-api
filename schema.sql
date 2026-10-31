@@ -162,6 +162,9 @@ CREATE TABLE IF NOT EXISTS profile_views (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Para contar rápido as visitas novas da última hora (teto por perfil)
+ALTER TABLE profile_views ADD INDEX idx_profile_views_recent (user_id, viewed_at);
+
 -- Badges criadas pelo dono em /management (as de fábrica ficam no código)
 CREATE TABLE IF NOT EXISTS badge_defs (
   badge_key   VARCHAR(20)  NOT NULL PRIMARY KEY,

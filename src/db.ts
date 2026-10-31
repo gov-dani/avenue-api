@@ -66,7 +66,8 @@ for (const sql of statements) {
   try {
     await run(sql);
   } catch (err) {
-    // 1060 = coluna já existe: o ALTER de uma migração antiga que já foi aplicada
-    if ((err as { errno?: number }).errno !== 1060) throw err;
+    // 1060 = coluna já existe, 1061 = índice já existe: o ALTER de uma migração antiga que já foi aplicada
+    const errno = (err as { errno?: number }).errno;
+    if (errno !== 1060 && errno !== 1061) throw err;
   }
 }
