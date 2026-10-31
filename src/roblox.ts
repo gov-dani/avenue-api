@@ -82,8 +82,8 @@ export interface RobloxPresence {
   game?: { name: string; placeId: string; iconUrl: string };
 }
 
-// A página consulta a cada 30s: guardar a resposta por um tempo poupa o Roblox
-const PRESENCE_MS = 25_000;
+// A página consulta a cada 15s: guardar a resposta por um tempo poupa o Roblox
+const PRESENCE_MS = 10_000;
 const presenceCache = new Map<string, { at: number; value: RobloxPresence }>();
 
 /** Se a pessoa está online ou jogando agora. Quem escondeu o status no Roblox aparece como offline. */
