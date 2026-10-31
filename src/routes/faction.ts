@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { publicRole } from '../badges.js';
 import { membersQuerySchema } from '../schemas.js';
 import { ROLE_RANK, listUsers, toCard } from '../users.js';
 
@@ -12,7 +13,7 @@ export default async function factionRoutes(app: FastifyInstance) {
 
     const needle = q?.toLowerCase();
     return rows
-      .filter((u) => !role || u.role === role)
+      .filter((u) => !role || publicRole(u) === role)
       .filter(
         (u) =>
           !needle ||
@@ -21,7 +22,7 @@ export default async function factionRoutes(app: FastifyInstance) {
       )
       .sort(
         (a, b) =>
-          ROLE_RANK[b.role] - ROLE_RANK[a.role] || a.display_name.localeCompare(b.display_name),
+          ROLE_RANK[publicRole(b)] - ROLE_RANK[publicRole(a)] || a.display_name.localeCompare(b.display_name),
       )
       .map(toCard);
   });

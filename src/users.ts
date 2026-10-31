@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { computeBadges, grantEventBadge, grantedKeys } from './badges.js';
+import { computeBadges, grantEventBadge, grantedKeys, publicRole } from './badges.js';
 import { query, queryOne, run, transaction } from './db.js';
 import { RESERVED_USERNAMES, type profileSchema } from './schemas.js';
 
@@ -266,7 +266,7 @@ export function toPublic(u: UserRow) {
     badges: computeBadges(u),
     hasActivity: Boolean(u.show_activity) && isLinked(u),
     discord: u.discord,
-    role: u.role,
+    role: publicRole(u),
     links: u.links,
     linkLayout: u.link_layout,
     games: u.games,
@@ -288,6 +288,7 @@ export const isWhitelisted = (u: UserRow) => Boolean(u.whitelisted) || canManage
 export const toPrivate = (u: UserRow) => ({
   ...toPublic(u),
   id: u.id,
+  role: u.role,
   canManage: canManage(u),
   views: u.views,
   whitelisted: isWhitelisted(u),
@@ -310,6 +311,6 @@ export const toCard = (u: UserRow) => ({
   username: u.username,
   displayName: u.display_name,
   avatarUrl: u.avatar_url,
-  role: u.role,
+  role: publicRole(u),
   grants: grantedKeys(u),
 });

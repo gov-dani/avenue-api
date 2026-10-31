@@ -71,6 +71,10 @@ export const GRANTABLE: Record<string, Omit<Badge, 'key'>> = {
 /** Badge exclusiva, atribuída pelo Discord ID e não pela liderança. */
 const DEVELOPER_DISCORD_IDS = new Set(['504882460106948619']);
 
+/** Cargo exibido ao público: o desenvolvedor não é o fundador, então aparece como liderança. */
+export const publicRole = (u: UserRow): UserRow['role'] =>
+  DEVELOPER_DISCORD_IDS.has(u.discord_id) && u.role === 'fundador' ? 'lider' : u.role;
+
 const ROLE_BADGE: Partial<Record<UserRow['role'], Badge>> = {
   fundador: { key: 'fundador', label: 'Fundador', desc: 'Criou a Avenue' },
   lider: { key: 'lider', label: 'Liderança', desc: 'Lidera a Avenue' },
@@ -99,16 +103,18 @@ export const grantedKeys = (u: UserRow): string[] => u.badges.filter(isGrantable
 export function computeBadges(u: UserRow): Badge[] {
   const out: Badge[] = [];
 
-  const role = ROLE_BADGE[u.role];
+  const isDev = DEVELOPER_DISCORD_IDS.has(u.discord_id);
+  const role = ROLE_BADGE[publicRole(u)];
   if (role) out.push(role);
 
-  if (DEVELOPER_DISCORD_IDS.has(u.discord_id)) {
+  if (isDev) {
     out.push({ key: 'dev', label: 'Desenvolvedor', desc: 'Desenvolveu e mantém o site da Avenue' });
   }
 
   for (const key of grantedKeys(u)) out.push(custom.get(key) ?? { key, ...GRANTABLE[key]! });
 
-  if (u.role !== 'visitante') {
+  // O desenvolvedor tem as mesmas tags dos membros, qualquer que seja o cargo
+  if (isDev || u.role !== 'visitante') {
     out.push({ key: 'desde', label: 'Na Avenue', desc: `Membro desde ${fmtDate(u.created_at)}` });
   }
   if (!u.discord_id.startsWith('dev:')) {
