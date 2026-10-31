@@ -314,6 +314,7 @@ export const toCard = (u: UserRow) => ({
   username: u.username,
   displayName: u.display_name,
   avatarUrl: u.avatar_url,
+  bannerUrl: u.banner_url,
   role: publicRole(u),
   grants: grantedKeys(u),
 });
