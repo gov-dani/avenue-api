@@ -10,6 +10,7 @@ import {
   loadCustomBadges,
 } from '../badges.js';
 import { query, queryOne, run, transaction } from '../db.js';
+import { parseSvg } from '../svg.js';
 import { dmWhitelistApproved, dmWhitelistRejected } from '../notify.js';
 import {
   adminUserSchema,
@@ -72,17 +73,25 @@ const asDetail = (u: UserRow) => ({ ...toPrivate(u), ...asCard(u) });
 
 // Ícones do allsvgicons.com: o SVG é baixado uma vez e guardado, só com formas (nada de script ou link)
 const ICON_HOST = 'https://i.allsvgicons.com';
-const UNSAFE_SVG = /<(script|foreignObject|iframe|image|use|style|a|animate|set)\b|\son\w+\s*=|javascript:|href\s*=/i;
 
-async function fetchIcon(icon: string): Promise<string | null | undefined> {
+/**
+ * Decide o SVG guardado da badge: o .svg enviado, o do allsvgicons ("pacote:nome"),
+ * ou o que já estava salvo quando só o texto mudou. null = ícone pronto do site; undefined = falhou.
+ */
+async function resolveIcon(icon: string, upload?: string, saved?: string): Promise<string | null | undefined> {
+  if (upload !== undefined) {
+    const svg = parseSvg(upload);
+    return svg ? JSON.stringify(svg) : undefined;
+  }
+  if (icon === 'upload') return saved ?? undefined;
+
   const [pack, name] = icon.split(':');
-  if (!pack || !name) return null; // ícone pronto do site, sem SVG guardado
+  if (!pack || !name) return null;
   try {
     const res = await fetch(`${ICON_HOST}/${pack}/${name}.svg`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return undefined;
-    const m = /^<svg[^>]*\sviewBox="([\d.\s-]+)"[^>]*>([\s\S]*)<\/svg>\s*$/.exec((await res.text()).trim());
-    if (!m || m[2]!.length > 8000 || UNSAFE_SVG.test(m[2]!)) return undefined;
-    return JSON.stringify({ viewBox: m[1], body: m[2] });
+    const svg = parseSvg(await res.text());
+    return svg ? JSON.stringify(svg) : undefined;
   } catch {
     return undefined;
   }
@@ -310,9 +319,9 @@ export default async function managementRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
     if (customBadges().length >= 40) return reply.code(400).send({ error: 'Limite de 40 badges criadas' });
 
-    const { label, desc, color, icon } = parsed.data;
-    const svg = await fetchIcon(icon);
-    if (svg === undefined) return reply.code(400).send({ error: 'Não foi possível carregar esse ícone' });
+    const { label, desc, color, icon, svgFile } = parsed.data;
+    const svg = await resolveIcon(icon, svgFile);
+    if (svg === undefined) return reply.code(400).send({ error: 'Ícone inválido. Use um .svg simples, sem scripts nem imagens.' });
 
     const key = `c_${randomBytes(5).toString('hex')}`;
     await run('INSERT INTO badge_defs (badge_key, label, description, color, icon, icon_svg) VALUES (?, ?, ?, ?, ?, ?)', [
@@ -335,9 +344,10 @@ export default async function managementRoutes(app: FastifyInstance) {
       return reply.code(404).send({ error: 'Badge não encontrada' });
     }
 
-    const { label, desc, color, icon } = parsed.data;
-    const svg = await fetchIcon(icon);
-    if (svg === undefined) return reply.code(400).send({ error: 'Não foi possível carregar esse ícone' });
+    const { label, desc, color, icon, svgFile } = parsed.data;
+    const saved = customBadges().find((b) => b.key === req.params.key)?.svg;
+    const svg = await resolveIcon(icon, svgFile, saved && JSON.stringify(saved));
+    if (svg === undefined) return reply.code(400).send({ error: 'Ícone inválido. Use um .svg simples, sem scripts nem imagens.' });
 
     await run('UPDATE badge_defs SET label = ?, description = ?, color = ?, icon = ?, icon_svg = ? WHERE badge_key = ?', [
       label,
