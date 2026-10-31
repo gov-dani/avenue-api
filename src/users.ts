@@ -40,6 +40,7 @@ export interface UserRow {
   music_title: string;
   avatar_decoration: string;
   show_activity: number;
+  show_views: number;
   // user_discord
   discord_handle: string;
   discord_name: string;
@@ -64,7 +65,7 @@ type BaseRow = Omit<UserRow, 'links' | 'games' | 'gear' | 'badges' | 'discord_sy
 const SELECT_USER = `
   SELECT u.id, u.discord_id, u.username, u.role, u.views, u.created_at, u.whitelisted,
          p.display_name, p.bio, p.avatar_url, p.banner_url, p.discord, p.music_url, p.music_title,
-         p.avatar_decoration, p.show_activity,
+         p.avatar_decoration, p.show_activity, p.show_views,
          d.handle AS discord_handle, d.name AS discord_name, d.avatar_url AS discord_avatar,
          d.banner_url AS discord_banner, d.accent AS discord_accent, d.synced_at AS discord_synced_at,
          d.sync_avatar, d.sync_banner, d.sync_name
@@ -203,8 +204,8 @@ export async function saveProfile(id: number, p: ProfileInput, linked: boolean) 
   await transaction(async (tx) => {
     await tx(
       `UPDATE user_profiles SET display_name = ?, bio = ?, avatar_url = ?, banner_url = ?, music_url = ?,
-         music_title = ?, avatar_decoration = ?, discord = ?, show_activity = ? WHERE user_id = ?`,
-      [p.displayName, p.bio, p.avatarUrl, p.bannerUrl, p.musicUrl, p.musicTitle, p.avatarDecoration, p.discord, Number(p.showActivity), id],
+         music_title = ?, avatar_decoration = ?, discord = ?, show_activity = ?, show_views = ? WHERE user_id = ?`,
+      [p.displayName, p.bio, p.avatarUrl, p.bannerUrl, p.musicUrl, p.musicTitle, p.avatarDecoration, p.discord, Number(p.showActivity), Number(p.showViews), id],
     );
     // Conta sem Discord de verdade (atalho de dev) não tem o que sincronizar
     await tx('UPDATE user_discord SET sync_avatar = ?, sync_banner = ?, sync_name = ? WHERE user_id = ?', [
@@ -266,7 +267,9 @@ export function toPublic(u: UserRow) {
     links: u.links,
     games: u.games,
     gear: u.gear,
-    views: u.views,
+    // Contagem escondida pelo dono não sai na API pública
+    views: u.show_views ? u.views : 0,
+    showViews: Boolean(u.show_views),
     createdAt: u.created_at,
   };
 }
@@ -282,6 +285,7 @@ export const toPrivate = (u: UserRow) => ({
   ...toPublic(u),
   id: u.id,
   canManage: canManage(u),
+  views: u.views,
   whitelisted: isWhitelisted(u),
   syncAvatar: Boolean(u.sync_avatar),
   syncBanner: Boolean(u.sync_banner),

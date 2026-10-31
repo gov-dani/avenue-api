@@ -109,7 +109,7 @@ export function computeBadges(u: UserRow): Badge[] {
     out.push({ key: 'setup', label: 'Setup montado', desc: 'Mostra o setup completo' });
   }
   if (u.views >= 100) {
-    out.push({ key: 'popular', label: 'Popular', desc: `${u.views.toLocaleString('pt-BR')} visualizações no perfil` });
+    out.push({ key: 'popular', label: 'Popular', desc: u.show_views ? `${u.views.toLocaleString('pt-BR')} visualizações no perfil` : 'Perfil muito visitado' });
   }
   return out;
 }
