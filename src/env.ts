@@ -18,6 +18,8 @@ const schema = z
     // Onde ficam banners, fotos e músicas enviados pelos usuários
     // Backups do banco (.sql), um por dia; BACKUP_KEEP é quantos ficam guardados
     BACKUP_DIR: z.string().default('./data/backups'),
+    // Caminho do mysqldump quando ele não está no PATH (comum no Windows)
+    MYSQLDUMP_PATH: z.string().default('mysqldump'),
     BACKUP_KEEP: z.coerce.number().int().min(1).default(14),
     // Chave do Fivemanage (https://fivemanage.com): quando definida, as imagens enviadas vão para lá
     FIVEMANAGE_API_KEY: z.string().optional(),

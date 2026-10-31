@@ -46,7 +46,7 @@ async function doBackup(): Promise<BackupInfo> {
   const file = join(env.BACKUP_DIR, name);
 
   const dump = spawn(
-    'mysqldump',
+    env.MYSQLDUMP_PATH,
     [
       '--single-transaction',
       '--routines',
