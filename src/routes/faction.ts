@@ -25,4 +25,13 @@ export default async function factionRoutes(app: FastifyInstance) {
       )
       .map(toCard);
   });
+
+  // Perfis mais visitados. Quem escondeu a contagem não entra no ranking.
+  app.get('/ranking', async () => {
+    const rows = await listUsers(
+      'u.whitelisted = 1 AND p.show_views = 1 AND u.views > 0',
+      'u.views DESC, u.id',
+    );
+    return rows.slice(0, 10).map((u) => ({ ...toCard(u), views: u.views }));
+  });
 }
