@@ -8,6 +8,7 @@
 --   user_discord     dados vindos da conta do Discord + o que sincronizar
 --   user_links       links do perfil
 --   user_roblox      conta do Roblox vinculada (verificada pela bio)
+--   user_valorant    Riot ID do Valorant e rank
 --   user_games       jogos
 --   user_gear        equipamentos do setup
 --   user_badges      badges concedidas pela liderança
@@ -101,6 +102,24 @@ CREATE TABLE IF NOT EXISTS user_roblox (
   pending_username VARCHAR(32)  NOT NULL DEFAULT '',
   pending_code     VARCHAR(24)  NOT NULL DEFAULT '',
   pending_at       DATETIME     NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Riot ID do Valorant informado pela pessoa (o Riot não permite provar que a conta é dela).
+-- Rank e nível vêm da HenrikDev quando há chave configurada
+CREATE TABLE IF NOT EXISTS user_valorant (
+  user_id      INT UNSIGNED NOT NULL PRIMARY KEY,
+  name         VARCHAR(32)  NOT NULL,
+  tag          VARCHAR(8)   NOT NULL,
+  region       VARCHAR(8)   NOT NULL DEFAULT '',
+  level        INT          NOT NULL DEFAULT 0,
+  card_url     VARCHAR(500) NOT NULL DEFAULT '',
+  tier         VARCHAR(30)  NOT NULL DEFAULT '',
+  tier_id      INT          NOT NULL DEFAULT 0,
+  rr           INT          NOT NULL DEFAULT 0,
+  peak_tier    VARCHAR(30)  NOT NULL DEFAULT '',
+  peak_tier_id INT          NOT NULL DEFAULT 0,
+  synced_at    DATETIME     NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

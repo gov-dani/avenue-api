@@ -1,7 +1,9 @@
 import type { z } from 'zod';
 import { computeBadges, grantEventBadge, grantedKeys, publicRole } from './badges.js';
 import { query, queryOne, run, transaction } from './db.js';
+import { env } from './env.js';
 import { CODE_TTL_MIN } from './roblox.js';
+import { trackerUrl } from './valorant.js';
 import { RESERVED_USERNAMES, type profileSchema } from './schemas.js';
 
 export const ROLES = ['visitante', 'membro', 'equipe', 'lider', 'fundador'] as const;
@@ -67,6 +69,17 @@ export interface UserRow {
   roblox_pending_username: string;
   roblox_pending_code: string;
   roblox_pending_at: string | null;
+  // user_valorant (valorant_name vazio = sem Riot ID)
+  valorant_name: string;
+  valorant_tag: string;
+  valorant_region: string;
+  valorant_level: number;
+  valorant_card: string;
+  valorant_tier: string;
+  valorant_tier_id: number;
+  valorant_rr: number;
+  valorant_peak_tier: string;
+  valorant_peak_tier_id: number;
   // user_links, user_games, user_gear, user_badges
   links: Link[];
   games: Game[];
@@ -89,11 +102,16 @@ const SELECT_USER = `
          COALESCE(r.avatar_url, '') AS roblox_avatar, COALESCE(r.friends, 0) AS roblox_friends,
          COALESCE(r.followers, 0) AS roblox_followers, COALESCE(r.account_created, '') AS roblox_created,
          COALESCE(r.pending_username, '') AS roblox_pending_username, COALESCE(r.pending_code, '') AS roblox_pending_code,
-         r.pending_at AS roblox_pending_at
+         r.pending_at AS roblox_pending_at,
+         COALESCE(v.name, '') AS valorant_name, COALESCE(v.tag, '') AS valorant_tag, COALESCE(v.region, '') AS valorant_region,
+         COALESCE(v.level, 0) AS valorant_level, COALESCE(v.card_url, '') AS valorant_card, COALESCE(v.tier, '') AS valorant_tier,
+         COALESCE(v.tier_id, 0) AS valorant_tier_id, COALESCE(v.rr, 0) AS valorant_rr,
+         COALESCE(v.peak_tier, '') AS valorant_peak_tier, COALESCE(v.peak_tier_id, 0) AS valorant_peak_tier_id
   FROM users u
   JOIN user_profiles p ON p.user_id = u.id
   JOIN user_discord d ON d.user_id = u.id
-  LEFT JOIN user_roblox r ON r.user_id = u.id`;
+  LEFT JOIN user_roblox r ON r.user_id = u.id
+  LEFT JOIN user_valorant v ON v.user_id = u.id`;
 
 /** Anexa as listas (links, jogos, equipamentos, badges) de vários usuários de uma vez. */
 async function hydrate(rows: BaseRow[]): Promise<UserRow[]> {
@@ -305,6 +323,20 @@ export function toPublic(u: UserRow) {
           url: `https://www.roblox.com/users/${u.roblox_id}/profile`,
         }
       : null,
+    valorant: u.valorant_name
+      ? {
+          riotId: `${u.valorant_name}#${u.valorant_tag}`,
+          region: u.valorant_region,
+          level: u.valorant_level,
+          cardUrl: u.valorant_card,
+          tier: u.valorant_tier,
+          tierId: u.valorant_tier_id,
+          rr: u.valorant_rr,
+          peakTier: u.valorant_peak_tier,
+          peakTierId: u.valorant_peak_tier_id,
+          trackerUrl: trackerUrl(u.valorant_name, u.valorant_tag),
+        }
+      : null,
     // Contagem escondida pelo dono não sai na API pública
     views: u.show_views ? u.views : 0,
     showViews: Boolean(u.show_views),
@@ -342,6 +374,8 @@ export const toPrivate = (u: UserRow) => ({
   syncName: Boolean(u.sync_name),
   showActivity: Boolean(u.show_activity),
   robloxPending: pendingRoblox(u),
+  /** O site tem chave da HenrikDev: o rank é puxado sozinho */
+  valorantRank: Boolean(env.HENRIK_API_KEY),
   discordAccount: {
     linked: isLinked(u),
     handle: u.discord_handle,
