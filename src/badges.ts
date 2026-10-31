@@ -5,7 +5,7 @@ export interface Badge {
   key: string;
   label: string;
   desc: string;
-  /** Só nas badges criadas em /management */
+  /** Só nas badges criadas em /owner */
   color?: string;
   icon?: string;
   /** Ícone do allsvgicons.com, guardado no banco para o perfil não depender de site externo */
@@ -26,7 +26,7 @@ export interface CustomBadge {
   svg?: IconSvg;
 }
 
-// Badges criadas em /management ficam na memória para o computeBadges (síncrono) enxergar.
+// Badges criadas em /owner ficam na memória para o computeBadges (síncrono) enxergar.
 let custom = new Map<string, CustomBadge>();
 
 export async function loadCustomBadges() {
@@ -42,7 +42,7 @@ export async function loadCustomBadges() {
 }
 
 /**
- * Badge de evento: quem entrou até o prazo recebe sozinho. A badge é criada em /management
+ * Badge de evento: quem entrou até o prazo recebe sozinho. A badge é criada em /owner
  * (é achada pelo nome) e o prazo é 31/10/2026 23:59 em Brasília (UTC-3), já que created_at é UTC.
  */
 const EVENT_BADGE = { label: 'Halloween 2026', until: '2026-11-01 02:59:59' };

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const RESERVED_USERNAMES = new Set([
   'api', 'admin', 'login', 'registro', 'painel', 'membros', 'entrar', 'sair',
-  'management', 'sobre', 'termos', 'privacidade', 'cookies', 'lgpd', 'contato', 'ajuda', 'static', 'assets', '_next', 'favicon',
+  'management', 'owner', 'sobre', 'termos', 'privacidade', 'cookies', 'lgpd', 'contato', 'ajuda', 'static', 'assets', '_next', 'favicon',
 ]);
 
 const httpUrl = z
@@ -57,7 +57,7 @@ export const membersQuerySchema = z.object({
   role: z.enum(['membro', 'equipe', 'lider', 'fundador']).optional(),
 });
 
-// Quais badges existem é decidido na rota (as de fábrica + as criadas em /management)
+// Quais badges existem é decidido na rota (as de fábrica + as criadas em /owner)
 export const grantsSchema = z.object({
   badges: z.array(z.string().max(20)).max(60),
 });

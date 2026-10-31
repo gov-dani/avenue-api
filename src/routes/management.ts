@@ -104,7 +104,7 @@ const ts = (sql: string) => Date.parse(`${sql.replace(' ', 'T')}Z`);
 
 export default async function managementRoutes(app: FastifyInstance) {
   app.addHook('preHandler', async (req, reply) => {
-    if (req.url.startsWith('/management')) return requireManager(req, reply);
+    if (req.url.startsWith('/owner')) return requireManager(req, reply);
   });
 
   const audit = (actor: UserRow, action: string, target = '', detail = '') =>
@@ -116,7 +116,7 @@ export default async function managementRoutes(app: FastifyInstance) {
     ]);
 
   // ---------- Visão geral ----------
-  app.get('/management/overview', async () => {
+  app.get('/owner/overview', async () => {
     const users = await listUsers();
     const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
@@ -144,19 +144,19 @@ export default async function managementRoutes(app: FastifyInstance) {
   });
 
   // ---------- Usuários ----------
-  app.get('/management/users', async () => {
+  app.get('/owner/users', async () => {
     const rows = await listUsers(undefined, 'u.created_at DESC');
     return rows.map(asCard);
   });
 
-  app.get<{ Params: { username: string } }>('/management/users/:username', async (req, reply) => {
+  app.get<{ Params: { username: string } }>('/owner/users/:username', async (req, reply) => {
     const target = await findByUsername(req.params.username);
     if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
     return asDetail(target);
   });
 
   // Edita o perfil inteiro de qualquer pessoa (mesmos campos e regras do painel)
-  app.put<{ Params: { username: string } }>('/management/users/:username/profile', async (req, reply) => {
+  app.put<{ Params: { username: string } }>('/owner/users/:username/profile', async (req, reply) => {
     const parsed = profileSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
 
@@ -170,7 +170,7 @@ export default async function managementRoutes(app: FastifyInstance) {
   });
 
   // Cargo, @usuário (a URL do perfil) e visualizações
-  app.patch<{ Params: { username: string } }>('/management/users/:username', async (req, reply) => {
+  app.patch<{ Params: { username: string } }>('/owner/users/:username', async (req, reply) => {
     const parsed = adminUserSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
     const { role, username, views } = parsed.data;
@@ -203,7 +203,7 @@ export default async function managementRoutes(app: FastifyInstance) {
     return asDetail((await findByUsername(username ?? target.username))!);
   });
 
-  app.put<{ Params: { username: string } }>('/management/users/:username/badges', async (req, reply) => {
+  app.put<{ Params: { username: string } }>('/owner/users/:username/badges', async (req, reply) => {
     const parsed = grantsSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Badge inválida' });
     if (!parsed.data.badges.every(isGrantable)) return reply.code(400).send({ error: 'Badge inexistente' });
@@ -217,7 +217,7 @@ export default async function managementRoutes(app: FastifyInstance) {
     return asDetail((await findByUsername(target.username))!);
   });
 
-  app.delete<{ Params: { username: string } }>('/management/users/:username', async (req, reply) => {
+  app.delete<{ Params: { username: string } }>('/owner/users/:username', async (req, reply) => {
     const target = await findByUsername(req.params.username);
     if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
     if (canManage(target)) return reply.code(403).send({ error: 'Esta conta não pode ser apagada' });
@@ -228,7 +228,7 @@ export default async function managementRoutes(app: FastifyInstance) {
   });
 
   // ---------- Whitelist ----------
-  app.get('/management/whitelist', async () => {
+  app.get('/owner/whitelist', async () => {
     const rows = await listRequests();
     return {
       pending: await pendingCount(),
@@ -244,7 +244,7 @@ export default async function managementRoutes(app: FastifyInstance) {
   });
 
   // Aprova: o @ pedido vira o link da pessoa, o perfil fica público e o resultado vai por DM
-  app.post<{ Params: { id: string } }>('/management/whitelist/:id/approve', async (req, reply) => {
+  app.post<{ Params: { id: string } }>('/owner/whitelist/:id/approve', async (req, reply) => {
     const parsed = whitelistReviewSchema.safeParse(req.body ?? {});
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
 
@@ -282,7 +282,7 @@ export default async function managementRoutes(app: FastifyInstance) {
     return { ok: true, dm, username };
   });
 
-  app.post<{ Params: { id: string } }>('/management/whitelist/:id/reject', async (req, reply) => {
+  app.post<{ Params: { id: string } }>('/owner/whitelist/:id/reject', async (req, reply) => {
     const parsed = whitelistReviewSchema.safeParse(req.body ?? {});
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
     const reason = parsed.data.reason ?? '';
@@ -315,9 +315,9 @@ export default async function managementRoutes(app: FastifyInstance) {
     };
   }
 
-  app.get('/management/badges', withHolders);
+  app.get('/owner/badges', withHolders);
 
-  app.post('/management/badges', async (req, reply) => {
+  app.post('/owner/badges', async (req, reply) => {
     const parsed = badgeDefSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
     if (customBadges().length >= 40) return reply.code(400).send({ error: 'Limite de 40 badges criadas' });
@@ -341,7 +341,7 @@ export default async function managementRoutes(app: FastifyInstance) {
     return reply.code(201).send(await withHolders());
   });
 
-  app.put<{ Params: { key: string } }>('/management/badges/:key', async (req, reply) => {
+  app.put<{ Params: { key: string } }>('/owner/badges/:key', async (req, reply) => {
     const parsed = badgeDefSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
     if (isBuiltinGrant(req.params.key) || !customBadges().some((b) => b.key === req.params.key)) {
@@ -366,7 +366,7 @@ export default async function managementRoutes(app: FastifyInstance) {
     return withHolders();
   });
 
-  app.delete<{ Params: { key: string } }>('/management/badges/:key', async (req, reply) => {
+  app.delete<{ Params: { key: string } }>('/owner/badges/:key', async (req, reply) => {
     const badge = customBadges().find((b) => b.key === req.params.key);
     if (!badge) return reply.code(404).send({ error: 'Badge não encontrada' });
 
@@ -379,9 +379,9 @@ export default async function managementRoutes(app: FastifyInstance) {
 
   // ---------- Histórico ----------
   // ---------- Backups do banco ----------
-  app.get('/management/backups', async () => listBackups());
+  app.get('/owner/backups', async () => listBackups());
 
-  app.post('/management/backups', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } } }, async (req, reply) => {
+  app.post('/owner/backups', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } } }, async (req, reply) => {
     try {
       const made = await runBackup();
       await audit(req.currentUser!, 'backup criado', made.name);
@@ -393,7 +393,7 @@ export default async function managementRoutes(app: FastifyInstance) {
   });
 
   app.get<{ Params: { name: string } }>(
-    '/management/backups/:name',
+    '/owner/backups/:name',
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (req, reply) => {
       const path = backupPath(req.params.name);
@@ -409,7 +409,7 @@ export default async function managementRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get('/management/audit', async () =>
+  app.get('/owner/audit', async () =>
     query<{ id: number; actor: string; action: string; target: string; detail: string; created_at: string }>(
       'SELECT id, actor, action, target, detail, created_at FROM audit_log ORDER BY id DESC LIMIT 200',
     ),

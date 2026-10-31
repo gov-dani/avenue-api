@@ -278,8 +278,8 @@ export function toPublic(u: UserRow) {
   };
 }
 
-// Discord IDs com acesso à gestão (/management). Por ora, só o dono.
-const MANAGER_DISCORD_IDS = new Set(['504882460106948619']);
+// Discord IDs com acesso à gestão (/owner). Dono e quem ele liberou.
+const MANAGER_DISCORD_IDS = new Set(['504882460106948619', '257980670310088705']);
 export const canManage = (u: UserRow) => MANAGER_DISCORD_IDS.has(u.discord_id);
 
 /** Só quem passou pela whitelist (ou é da gestão) tem perfil público. */
