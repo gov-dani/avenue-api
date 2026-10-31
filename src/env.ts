@@ -1,0 +1,34 @@
+import { z } from 'zod';
+
+const schema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    PORT: z.coerce.number().default(4000),
+    HOST: z.string().default('0.0.0.0'),
+    JWT_SECRET: z.string().min(16).default('dev-only-secret-change-me'),
+    WEB_ORIGIN: z.string().default('http://localhost:3000'),
+    // URL pública do site (para onde o usuário volta depois do login)
+    WEB_URL: z.string().default('http://localhost:3000'),
+    DB_PATH: z.string().default('./data/avenue.db'),
+    // Onde ficam banners, fotos e músicas enviados pelos usuários
+    UPLOAD_DIR: z.string().default('./data/uploads'),
+    // Aplicativo OAuth2 criado em https://discord.com/developers/applications
+    DISCORD_CLIENT_ID: z.string().optional(),
+    DISCORD_CLIENT_SECRET: z.string().optional(),
+    // Precisa estar cadastrada em OAuth2 > Redirects, idêntica a esta
+    DISCORD_REDIRECT_URI: z.string().default('http://localhost:3000/api/auth/discord/callback'),
+    // Bot que lê a presença (jogo atual) dos membros do servidor. Opcional: sem ele usa o Lanyard
+    DISCORD_BOT_TOKEN: z.string().optional(),
+    DISCORD_GUILD_ID: z.string().optional(),
+  })
+  .refine((e) => e.NODE_ENV !== 'production' || e.JWT_SECRET !== 'dev-only-secret-change-me', {
+    message: 'JWT_SECRET precisa ser definido em produção',
+    path: ['JWT_SECRET'],
+  })
+  .refine((e) => e.NODE_ENV !== 'production' || (e.DISCORD_CLIENT_ID && e.DISCORD_CLIENT_SECRET), {
+    message: 'DISCORD_CLIENT_ID e DISCORD_CLIENT_SECRET são obrigatórios em produção',
+    path: ['DISCORD_CLIENT_ID'],
+  });
+
+export const env = schema.parse(process.env);
+export const isProd = env.NODE_ENV === 'production';
