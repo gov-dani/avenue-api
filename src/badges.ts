@@ -10,6 +10,8 @@ export interface Badge {
   icon?: string;
   /** Ícone do allsvgicons.com, guardado no banco para o perfil não depender de site externo */
   svg?: IconSvg;
+  /** Imagem em /public do site, para insígnias que não são ícones de uma cor só */
+  image?: string;
 }
 
 export interface IconSvg {
@@ -75,6 +77,10 @@ const DEVELOPER_DISCORD_IDS = new Set(['504882460106948619']);
 export const publicRole = (u: UserRow): UserRow['role'] =>
   DEVELOPER_DISCORD_IDS.has(u.discord_id) && u.role === 'fundador' ? 'lider' : u.role;
 
+/** Surpresa: este Discord ID ganha o perfil rosa e a insígnia da Hello Kitty. */
+const KITTY_DISCORD_IDS = new Set(['1105505473563734106']);
+export const profileTheme = (u: UserRow): 'pink' | '' => (KITTY_DISCORD_IDS.has(u.discord_id) ? 'pink' : '');
+
 const ROLE_BADGE: Partial<Record<UserRow['role'], Badge>> = {
   fundador: { key: 'fundador', label: 'Fundador', desc: 'Criou a Avenue' },
   lider: { key: 'lider', label: 'Liderança', desc: 'Lidera a Avenue' },
@@ -109,6 +115,10 @@ export function computeBadges(u: UserRow): Badge[] {
 
   if (isDev) {
     out.push({ key: 'dev', label: 'Desenvolvedor', desc: 'Desenvolveu e mantém o site da Avenue' });
+  }
+
+  if (profileTheme(u)) {
+    out.push({ key: 'kitty', label: '?????', desc: '?????', color: '#e6007e', image: '/hello-kitty.png' });
   }
 
   for (const key of grantedKeys(u)) out.push(custom.get(key) ?? { key, ...GRANTABLE[key]! });

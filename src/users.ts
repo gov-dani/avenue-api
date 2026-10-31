@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { computeBadges, grantEventBadge, grantedKeys, publicRole } from './badges.js';
+import { computeBadges, grantEventBadge, grantedKeys, profileTheme, publicRole } from './badges.js';
 import { query, queryOne, run, transaction } from './db.js';
 import { env } from './env.js';
 import { CODE_TTL_MIN } from './roblox.js';
@@ -304,6 +304,7 @@ export function toPublic(u: UserRow) {
     nameFont: u.name_font,
     bannerColor: u.discord_accent,
     badges: computeBadges(u),
+    theme: profileTheme(u),
     hasActivity: Boolean(u.show_activity) && isLinked(u),
     discord: u.discord,
     role: publicRole(u),
