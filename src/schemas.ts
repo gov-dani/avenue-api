@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const RESERVED_USERNAMES = new Set([
   'api', 'admin', 'login', 'registro', 'painel', 'membros', 'entrar', 'sair',
-  'sobre', 'termos', 'privacidade', 'static', 'assets', '_next', 'favicon',
+  'sobre', 'termos', 'privacidade', 'cookies', 'lgpd', 'contato', 'ajuda', 'static', 'assets', '_next', 'favicon',
 ]);
 
 const httpUrl = z
