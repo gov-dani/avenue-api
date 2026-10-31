@@ -9,7 +9,12 @@ const schema = z
     WEB_ORIGIN: z.string().default('http://localhost:3000'),
     // URL pública do site (para onde o usuário volta depois do login)
     WEB_URL: z.string().default('http://localhost:3000'),
-    DB_PATH: z.string().default('./data/avenue.db'),
+    // MySQL (crie o banco antes, ex.: pelo HeidiSQL, com utf8mb4_unicode_ci)
+    DB_HOST: z.string().default('127.0.0.1'),
+    DB_PORT: z.coerce.number().default(3306),
+    DB_USER: z.string().default('root'),
+    DB_PASSWORD: z.string().default(''),
+    DB_NAME: z.string().default('avenue'),
     // Onde ficam banners, fotos e músicas enviados pelos usuários
     UPLOAD_DIR: z.string().default('./data/uploads'),
     // Aplicativo OAuth2 criado em https://discord.com/developers/applications

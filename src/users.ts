@@ -1,5 +1,5 @@
 import { computeBadges, grantedKeys } from './badges.js';
-import { db } from './db.js';
+import { queryOne, run } from './db.js';
 import { RESERVED_USERNAMES } from './schemas.js';
 
 export const ROLES = ['visitante', 'membro', 'equipe', 'lider', 'fundador'] as const;
@@ -52,25 +52,24 @@ export interface UserRow {
 }
 
 export const findByUsername = (username: string) =>
-  db.prepare('SELECT * FROM users WHERE username = ?').get(username) as unknown as UserRow | undefined;
+  queryOne<UserRow>('SELECT * FROM users WHERE username = ?', [username]);
 
-export const findById = (id: number) =>
-  db.prepare('SELECT * FROM users WHERE id = ?').get(id) as unknown as UserRow | undefined;
+export const findById = (id: number) => queryOne<UserRow>('SELECT * FROM users WHERE id = ?', [id]);
 
 const findByDiscordId = (discordId: string) =>
-  db.prepare('SELECT * FROM users WHERE discord_id = ?').get(discordId) as unknown as UserRow | undefined;
+  queryOne<UserRow>('SELECT * FROM users WHERE discord_id = ?', [discordId]);
 
-export const countUsers = () =>
-  (db.prepare('SELECT COUNT(*) AS n FROM users').get() as unknown as { n: number }).n;
+export const countUsers = async () =>
+  Number((await queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM users'))!.n);
 
 /** Transforma o nome do Discord em um @usuario válido e livre. */
-function freeUsername(raw: string): string {
+async function freeUsername(raw: string): Promise<string> {
   let base = raw.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^_+|_+$/g, '').slice(0, 16);
   if (base.length < 3) base = `${base}av9`.slice(0, 16);
   if (RESERVED_USERNAMES.has(base.toLowerCase())) base = `${base}_av9`;
 
   let candidate = base;
-  for (let n = 2; findByUsername(candidate); n++) candidate = `${base}${n}`;
+  for (let n = 2; await findByUsername(candidate); n++) candidate = `${base}${n}`;
   return candidate;
 }
 
@@ -87,16 +86,17 @@ interface DiscordProfile {
 export const isLinked = (u: UserRow) => !u.discord_id.startsWith('dev:');
 
 /** Copia para o perfil o que o usuário pediu para acompanhar a conta do Discord. */
-export function applySync(id: number) {
-  const u = findById(id);
+export async function applySync(id: number) {
+  const u = await findById(id);
   if (!u || !isLinked(u)) return;
-  db.prepare(
+  await run(
     `UPDATE users SET
        avatar_url   = CASE WHEN sync_avatar = 1 AND discord_avatar != '' THEN discord_avatar ELSE avatar_url END,
        banner_url   = CASE WHEN sync_banner = 1 THEN discord_banner ELSE banner_url END,
-       display_name = CASE WHEN sync_name = 1 AND discord_name != '' THEN substr(discord_name, 1, 40) ELSE display_name END
+       display_name = CASE WHEN sync_name = 1 AND discord_name != '' THEN SUBSTRING(discord_name, 1, 40) ELSE display_name END
      WHERE id = ?`,
-  ).run(id);
+    [id],
+  );
 }
 
 /**
@@ -105,38 +105,39 @@ export function applySync(id: number) {
  * sincronizar é copiado para o perfil; o resto do que o usuário editou fica.
  * O primeiro usuário vira fundador.
  */
-export function loginWithDiscord(d: DiscordProfile): { user: UserRow; created: boolean } {
-  const existing = findByDiscordId(d.id);
+export async function loginWithDiscord(d: DiscordProfile): Promise<{ user: UserRow; created: boolean }> {
+  const existing = await findByDiscordId(d.id);
   const synced = [d.handle, d.displayName, d.avatarUrl, d.bannerUrl, d.accent];
 
   if (existing) {
-    db.prepare(
+    await run(
       `UPDATE users SET discord_handle = ?, discord_name = ?, discord_avatar = ?,
-         discord_banner = ?, discord_accent = ?, discord_synced_at = datetime('now') WHERE id = ?`,
-    ).run(...synced, existing.id);
-    applySync(existing.id);
-    return { user: findById(existing.id)!, created: false };
+         discord_banner = ?, discord_accent = ?, discord_synced_at = UTC_TIMESTAMP() WHERE id = ?`,
+      [...synced, existing.id],
+    );
+    await applySync(existing.id);
+    return { user: (await findById(existing.id))!, created: false };
   }
 
-  const role: Role = countUsers() === 0 ? 'fundador' : 'visitante';
-  const result = db
-    .prepare(
-      `INSERT INTO users (discord_id, username, display_name, avatar_url, banner_url, discord, role,
-         discord_handle, discord_name, discord_avatar, discord_banner, discord_accent, discord_synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-    )
-    .run(
+  const role: Role = (await countUsers()) === 0 ? 'fundador' : 'visitante';
+  const result = await run(
+    `INSERT INTO users (discord_id, username, display_name, bio, avatar_url, banner_url, discord, role,
+       badges, music_url, links, games, gear,
+       discord_handle, discord_name, discord_avatar, discord_banner, discord_accent, discord_synced_at)
+     VALUES (?, ?, ?, '', ?, ?, ?, ?, '[]', '', '[]', '[]', '[]', ?, ?, ?, ?, ?, UTC_TIMESTAMP())`,
+    [
       d.id,
-      freeUsername(d.handle),
+      await freeUsername(d.handle),
       d.displayName.slice(0, 40),
       d.avatarUrl,
       d.bannerUrl,
       d.handle,
       role,
       ...synced,
-    );
+    ],
+  );
 
-  return { user: findById(Number(result.lastInsertRowid))!, created: true };
+  return { user: (await findById(result.insertId))!, created: true };
 }
 
 const parse = <T>(json: string): T[] => {

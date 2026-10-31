@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { db } from '../db.js';
+import { query, run } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { grantsSchema, memberRoleSchema, membersQuerySchema } from '../schemas.js';
 import { ROLE_RANK, findByUsername, toCard, type UserRow } from '../users.js';
@@ -10,9 +10,7 @@ export default async function factionRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: 'Filtro inválido' });
     const { q, role } = parsed.data;
 
-    const rows = db
-      .prepare("SELECT * FROM users WHERE role != 'visitante'")
-      .all() as unknown as UserRow[];
+    const rows = await query<UserRow>("SELECT * FROM users WHERE role != 'visitante'");
 
     const needle = q?.toLowerCase();
     return rows
@@ -32,7 +30,7 @@ export default async function factionRoutes(app: FastifyInstance) {
 
   // Lista todos os cadastros (inclusive visitantes) para o painel de administração
   app.get('/faction/users', { preHandler: requireAdmin }, async () => {
-    const rows = db.prepare('SELECT * FROM users ORDER BY created_at DESC').all() as unknown as UserRow[];
+    const rows = await query<UserRow>('SELECT * FROM users ORDER BY created_at DESC');
     return rows.map(toCard);
   });
 
@@ -44,7 +42,7 @@ export default async function factionRoutes(app: FastifyInstance) {
       if (!parsed.success) return reply.code(400).send({ error: 'Cargo inválido' });
 
       const actor = req.currentUser!;
-      const target = findByUsername(req.params.username);
+      const target = await findByUsername(req.params.username);
       if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
 
       // Só o fundador mexe em cargos de liderança
@@ -54,7 +52,7 @@ export default async function factionRoutes(app: FastifyInstance) {
         return reply.code(403).send({ error: 'Apenas o fundador altera cargos de liderança' });
       }
 
-      db.prepare('UPDATE users SET role = ? WHERE id = ?').run(parsed.data.role, target.id);
+      await run('UPDATE users SET role = ? WHERE id = ?', [parsed.data.role, target.id]);
       return toCard({ ...target, role: parsed.data.role });
     },
   );
@@ -67,11 +65,11 @@ export default async function factionRoutes(app: FastifyInstance) {
       const parsed = grantsSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: 'Badge inválida' });
 
-      const target = findByUsername(req.params.username);
+      const target = await findByUsername(req.params.username);
       if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
 
       const badges = JSON.stringify([...new Set(parsed.data.badges)]);
-      db.prepare('UPDATE users SET badges = ? WHERE id = ?').run(badges, target.id);
+      await run('UPDATE users SET badges = ? WHERE id = ?', [badges, target.id]);
       return toCard({ ...target, badges });
     },
   );

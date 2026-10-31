@@ -63,7 +63,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
       try {
         const d = await fetchDiscordUser(code);
-        const { user, created } = loginWithDiscord({
+        const { user, created } = await loginWithDiscord({
           id: d.id,
           handle: d.username,
           displayName: d.global_name || d.username,
@@ -84,7 +84,7 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!devLoginEnabled) return reply.code(404).send({ error: 'Não encontrado' });
 
     const name = (req.query.name ?? '').trim().slice(0, 20) || 'dev';
-    const { user, created } = loginWithDiscord({
+    const { user, created } = await loginWithDiscord({
       id: `dev:${name.toLowerCase()}`,
       handle: name,
       displayName: name,

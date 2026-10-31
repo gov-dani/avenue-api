@@ -27,7 +27,7 @@ export async function requireUser(req: FastifyRequest, reply: FastifyReply) {
   } catch {
     return reply.code(401).send({ error: 'Não autenticado' });
   }
-  const user = findById(req.user.id);
+  const user = await findById(req.user.id);
   if (!user) return reply.code(401).send({ error: 'Sessão inválida' });
   req.currentUser = user;
 }
