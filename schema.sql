@@ -10,6 +10,7 @@
 --   user_roblox      conta do Roblox vinculada (verificada pela bio)
 --   user_valorant    Riot ID do Valorant e rank
 --   user_twitch      canal da Twitch vinculado (verificado pela bio do canal)
+--   user_tiktok      conta do TikTok vinculada por login (mostra o último vídeo)
 --   user_games       jogos
 --   user_gear        equipamentos do setup
 --   user_badges      badges concedidas pela liderança
@@ -150,6 +151,19 @@ CREATE TABLE IF NOT EXISTS user_twitch (
   pending_login    VARCHAR(32)  NOT NULL DEFAULT '',
   pending_code     VARCHAR(24)  NOT NULL DEFAULT '',
   pending_at       DATETIME     NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- TikTok (vinculado por login; os tokens nunca saem da API)
+CREATE TABLE IF NOT EXISTS user_tiktok (
+  user_id            INT UNSIGNED NOT NULL PRIMARY KEY,
+  open_id            VARCHAR(80)  NOT NULL UNIQUE,
+  username           VARCHAR(64)  NOT NULL DEFAULT '',
+  display_name       VARCHAR(100) NOT NULL DEFAULT '',
+  access_token       VARCHAR(1000) NOT NULL,
+  refresh_token      VARCHAR(1000) NOT NULL,
+  access_expires_at  DATETIME     NOT NULL,
+  refresh_expires_at DATETIME     NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

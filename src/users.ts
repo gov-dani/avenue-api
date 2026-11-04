@@ -86,6 +86,10 @@ export interface UserRow {
   twitch_pending_login: string;
   twitch_pending_code: string;
   twitch_pending_at: string | null;
+  // user_tiktok (tiktok_open_id é null sem conta vinculada)
+  tiktok_open_id: string | null;
+  tiktok_username: string;
+  tiktok_display_name: string;
   // user_valorant (valorant_name vazio = sem Riot ID)
   valorant_name: string;
   valorant_tag: string;
@@ -125,6 +129,7 @@ const SELECT_USER = `
          COALESCE(t.avatar_url, '') AS twitch_avatar, COALESCE(t.broadcaster_type, '') AS twitch_type,
          COALESCE(t.account_created, '') AS twitch_created, COALESCE(t.pending_login, '') AS twitch_pending_login,
          COALESCE(t.pending_code, '') AS twitch_pending_code, t.pending_at AS twitch_pending_at,
+         k.open_id AS tiktok_open_id, COALESCE(k.username, '') AS tiktok_username, COALESCE(k.display_name, '') AS tiktok_display_name,
          COALESCE(v.name, '') AS valorant_name, COALESCE(v.tag, '') AS valorant_tag, COALESCE(v.region, '') AS valorant_region,
          COALESCE(v.level, 0) AS valorant_level, COALESCE(v.card_url, '') AS valorant_card, COALESCE(v.tier, '') AS valorant_tier,
          COALESCE(v.tier_id, 0) AS valorant_tier_id, COALESCE(v.rr, 0) AS valorant_rr,
@@ -134,6 +139,7 @@ const SELECT_USER = `
   JOIN user_discord d ON d.user_id = u.id
   LEFT JOIN user_roblox r ON r.user_id = u.id
   LEFT JOIN user_twitch t ON t.user_id = u.id
+  LEFT JOIN user_tiktok k ON k.user_id = u.id
   LEFT JOIN user_valorant v ON v.user_id = u.id`;
 
 /** Anexa as listas (links, jogos, equipamentos, badges) de vários usuários de uma vez. */
@@ -384,6 +390,13 @@ export function toPublic(u: UserRow) {
           url: `https://www.twitch.tv/${u.twitch_login}`,
         }
       : null,
+    tiktok: u.tiktok_open_id
+      ? {
+          username: u.tiktok_username,
+          displayName: u.tiktok_display_name,
+          url: u.tiktok_username ? `https://www.tiktok.com/@${u.tiktok_username}` : 'https://www.tiktok.com',
+        }
+      : null,
     valorant: u.valorant_name
       ? {
           riotId: `${u.valorant_name}#${u.valorant_tag}`,
@@ -445,6 +458,8 @@ export const toPrivate = (u: UserRow) => ({
   twitchPending: pendingTwitch(u),
   /** O site tem as chaves da Twitch: dá para vincular canais */
   twitchEnabled: Boolean(env.TWITCH_CLIENT_ID && env.TWITCH_CLIENT_SECRET),
+  /** O site tem as chaves do TikTok: dá para vincular a conta por login */
+  tiktokEnabled: Boolean(env.TIKTOK_CLIENT_KEY && env.TIKTOK_CLIENT_SECRET),
   /** O site tem chave da HenrikDev: o rank é puxado sozinho */
   valorantRank: Boolean(env.HENRIK_API_KEY),
   discordAccount: {

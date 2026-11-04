@@ -28,6 +28,11 @@ const schema = z
     // Aplicativo da Twitch (https://dev.twitch.tv/console/apps): vincula canais e mostra "ao vivo". Sem os dois, a aba Twitch fica desligada
     TWITCH_CLIENT_ID: z.string().optional(),
     TWITCH_CLIENT_SECRET: z.string().optional(),
+    // Aplicativo do TikTok (https://developers.tiktok.com/apps): vincula a conta por login e mostra o último vídeo. Sem os dois, a aba TikTok fica desligada
+    TIKTOK_CLIENT_KEY: z.string().optional(),
+    TIKTOK_CLIENT_SECRET: z.string().optional(),
+    // Precisa estar cadastrada em Login Kit > Redirect URI, idêntica a esta
+    TIKTOK_REDIRECT_URI: z.string().default('http://localhost:3000/api/me/tiktok/callback'),
     UPLOAD_DIR: z.string().default('./data/uploads'),
     // Aplicativo OAuth2 criado em https://discord.com/developers/applications
     DISCORD_CLIENT_ID: z.string().optional(),
