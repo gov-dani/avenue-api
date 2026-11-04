@@ -22,7 +22,7 @@ export const isAdmin = (role: Role) => ROLE_RANK[role] >= ROLE_RANK.lider;
 
 export interface Link { label: string; url: string }
 export interface Game { name: string; detail: string }
-export interface Gear { category: string; name: string }
+export interface Gear { category: string; name: string; image: string }
 
 /** O usuário inteiro, montado a partir de users + user_profiles + user_discord + listas. */
 export interface UserRow {
@@ -48,6 +48,11 @@ export interface UserRow {
   show_activity: number;
   show_views: number;
   link_layout: 'list' | 'grid' | 'icons';
+  gate_enabled: number;
+  gate_text: string;
+  gate_effects: string;
+  gate_color: string;
+  gate_bg: string;
   // user_discord
   discord_handle: string;
   discord_name: string;
@@ -105,6 +110,7 @@ const SELECT_USER = `
   SELECT u.id, u.discord_id, u.username, u.role, u.views, u.created_at, u.whitelisted,
          p.display_name, p.bio, p.location, p.avatar_url, p.banner_url, p.discord, p.music_url, p.music_title,
          p.avatar_decoration, p.name_style, p.name_font, p.show_activity, p.show_views, p.link_layout,
+         p.gate_enabled, p.gate_text, p.gate_effects, p.gate_color, p.gate_bg,
          d.handle AS discord_handle, d.name AS discord_name, d.avatar_url AS discord_avatar,
          d.banner_url AS discord_banner, d.accent AS discord_accent, d.synced_at AS discord_synced_at,
          d.sync_avatar, d.sync_banner, d.sync_name,
@@ -136,7 +142,7 @@ async function hydrate(rows: BaseRow[]): Promise<UserRow[]> {
   const [links, games, gear, badges] = await Promise.all([
     query<Link & { user_id: number }>('SELECT user_id, label, url FROM user_links WHERE user_id IN (?) ORDER BY sort_order', [ids]),
     query<Game & { user_id: number }>('SELECT user_id, name, detail FROM user_games WHERE user_id IN (?) ORDER BY sort_order', [ids]),
-    query<Gear & { user_id: number }>('SELECT user_id, category, name FROM user_gear WHERE user_id IN (?) ORDER BY sort_order', [ids]),
+    query<Gear & { user_id: number }>('SELECT user_id, category, name, image_url AS image FROM user_gear WHERE user_id IN (?) ORDER BY sort_order', [ids]),
     query<{ user_id: number; badge: string }>('SELECT user_id, badge FROM user_badges WHERE user_id IN (?)', [ids]),
   ]);
 
@@ -146,7 +152,7 @@ async function hydrate(rows: BaseRow[]): Promise<UserRow[]> {
     discord_synced_at: r.discord_synced_at ?? '',
     links: by(links, r.id).map(({ label, url }) => ({ label, url })),
     games: by(games, r.id).map(({ name, detail }) => ({ name, detail })),
-    gear: by(gear, r.id).map(({ category, name }) => ({ category, name })),
+    gear: by(gear, r.id).map(({ category, name, image }) => ({ category, name, image })),
     badges: by(badges, r.id).map((b) => b.badge),
   }));
 }
@@ -259,8 +265,10 @@ export async function saveProfile(id: number, p: ProfileInput, linked: boolean) 
   await transaction(async (tx) => {
     await tx(
       `UPDATE user_profiles SET display_name = ?, bio = ?, location = ?, avatar_url = ?, banner_url = ?, music_url = ?,
-         music_title = ?, avatar_decoration = ?, name_style = ?, name_font = ?, discord = ?, show_activity = ?, show_views = ?, link_layout = ? WHERE user_id = ?`,
-      [p.displayName, p.bio, p.location, p.avatarUrl, p.bannerUrl, p.musicUrl, p.musicTitle, p.avatarDecoration, p.nameStyle, p.nameFont, p.discord, Number(p.showActivity), Number(p.showViews), p.linkLayout, id],
+         music_title = ?, avatar_decoration = ?, name_style = ?, name_font = ?, discord = ?, show_activity = ?, show_views = ?, link_layout = ?,
+         gate_enabled = ?, gate_text = ?, gate_effects = ?, gate_color = ?, gate_bg = ? WHERE user_id = ?`,
+      [p.displayName, p.bio, p.location, p.avatarUrl, p.bannerUrl, p.musicUrl, p.musicTitle, p.avatarDecoration, p.nameStyle, p.nameFont, p.discord, Number(p.showActivity), Number(p.showViews), p.linkLayout,
+        Number(p.gate.enabled), p.gate.text || 'click to enter...', [...new Set(p.gate.effects)].join(','), p.gate.color.toLowerCase(), p.gate.bg.toLowerCase(), id],
     );
     // Conta sem Discord de verdade (atalho de dev) não tem o que sincronizar
     await tx('UPDATE user_discord SET sync_avatar = ?, sync_banner = ?, sync_name = ? WHERE user_id = ?', [
@@ -272,7 +280,7 @@ export async function saveProfile(id: number, p: ProfileInput, linked: boolean) 
 
     await replaceList(tx, 'user_links', ['label', 'url'], id, p.links.map((l) => [l.label, l.url]));
     await replaceList(tx, 'user_games', ['name', 'detail'], id, p.games.map((g) => [g.name, g.detail]));
-    await replaceList(tx, 'user_gear', ['category', 'name'], id, p.gear.map((g) => [g.category, g.name]));
+    await replaceList(tx, 'user_gear', ['category', 'name', 'image_url'], id, p.gear.map((g) => [g.category, g.name, g.image]));
   });
 }
 
@@ -280,7 +288,7 @@ export async function saveProfile(id: number, p: ProfileInput, linked: boolean) 
 async function replaceList(
   tx: typeof run,
   table: 'user_links' | 'user_games' | 'user_gear',
-  columns: [string, string],
+  columns: string[],
   userId: number,
   items: string[][],
 ) {
@@ -325,6 +333,13 @@ export function toPublic(u: UserRow) {
     role: publicRole(u),
     links: u.links,
     linkLayout: u.link_layout,
+    gate: {
+      enabled: Boolean(u.gate_enabled),
+      text: u.gate_text,
+      effects: u.gate_effects ? u.gate_effects.split(',') : [],
+      color: u.gate_color,
+      bg: u.gate_bg,
+    },
     games: u.games,
     gear: u.gear,
     roblox: u.roblox_id

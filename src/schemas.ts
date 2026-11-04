@@ -18,6 +18,13 @@ const mediaUrl = z.union([
   z.literal(''),
 ]);
 
+// Foto do periférico: link externo (Imgur, Discord...) ou imagem enviada para o /media
+const mediaImageUrl = z.union([
+  httpUrl,
+  z.string().regex(/^\/api\/media\/[a-f0-9]{32}\.(png|jpg|gif|webp)$/),
+  z.literal(''),
+]);
+
 // Decoração do avatar: uma das prontas (/decorations no site) ou um arquivo enviado
 const decorationUrl = z.union([
   z.string().regex(/^\/decorations\/[a-z0-9-]+\.(gif|png|webp)$/),
@@ -30,6 +37,19 @@ export const NAME_STYLES = ['', 'ouro', 'fogo', 'oceano', 'aurora', 'neon', 'gel
 
 // Fontes do nome. Os rótulos e o CSS de cada uma ficam em web/lib/namestyles.ts
 export const NAME_FONTS = ['', 'poppins', 'fantasia', 'classica', 'elegante', 'cursiva', 'manuscrita', 'grafite', 'tech', 'retro', 'terror', 'pixel', 'redonda'] as const;
+
+// Efeitos da tela de entrada. Os rótulos ficam em web/lib/gate.ts
+export const GATE_EFFECTS = ['stars', 'shooting', 'glow', 'sparkles', 'fireflies', 'snow'] as const;
+
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida');
+
+export const gateSchema = z.object({
+  enabled: z.boolean(),
+  text: z.string().trim().max(60),
+  effects: z.array(z.enum(GATE_EFFECTS)).max(GATE_EFFECTS.length),
+  color: hexColor,
+  bg: hexColor,
+});
 
 export const profileSchema = z.object({
   displayName: z.string().trim().min(1, 'Informe um nome').max(40),
@@ -48,6 +68,7 @@ export const profileSchema = z.object({
   showActivity: z.boolean(),
   showViews: z.boolean(),
   linkLayout: z.enum(['list', 'grid', 'icons']),
+  gate: gateSchema,
   discord: z.string().trim().max(120),
   links: z
     .array(z.object({ label: z.string().trim().min(1).max(40), url: httpUrl }))
@@ -56,7 +77,7 @@ export const profileSchema = z.object({
     .array(z.object({ name: z.string().trim().min(1).max(60), detail: z.string().trim().max(60) }))
     .max(12),
   gear: z
-    .array(z.object({ category: z.string().trim().min(1).max(30), name: z.string().trim().min(1).max(80) }))
+    .array(z.object({ category: z.string().trim().min(1).max(30), name: z.string().trim().min(1).max(80), image: mediaImageUrl }))
     .max(16),
 });
 

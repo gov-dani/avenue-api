@@ -61,6 +61,13 @@ ALTER TABLE user_profiles ADD COLUMN location VARCHAR(80) NOT NULL DEFAULT '';
 ALTER TABLE user_profiles ADD COLUMN name_style VARCHAR(24) NOT NULL DEFAULT '';
 ALTER TABLE user_profiles ADD COLUMN name_font VARCHAR(24) NOT NULL DEFAULT '';
 
+-- Tela de entrada ("click to enter...") antes de abrir o perfil
+ALTER TABLE user_profiles ADD COLUMN gate_enabled TINYINT NOT NULL DEFAULT 0;
+ALTER TABLE user_profiles ADD COLUMN gate_text VARCHAR(60) NOT NULL DEFAULT 'click to enter...';
+ALTER TABLE user_profiles ADD COLUMN gate_effects VARCHAR(80) NOT NULL DEFAULT '';
+ALTER TABLE user_profiles ADD COLUMN gate_color VARCHAR(7) NOT NULL DEFAULT '#ffffff';
+ALTER TABLE user_profiles ADD COLUMN gate_bg VARCHAR(7) NOT NULL DEFAULT '#000000';
+
 -- Dados vindos do Discord e o que do perfil acompanha a conta
 CREATE TABLE IF NOT EXISTS user_discord (
   user_id       INT UNSIGNED NOT NULL PRIMARY KEY,
@@ -163,6 +170,9 @@ CREATE TABLE IF NOT EXISTS user_gear (
   INDEX idx_user_gear_user (user_id, sort_order),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Foto opcional do periférico (link do Imgur, do Discord...)
+ALTER TABLE user_gear ADD COLUMN image_url VARCHAR(500) NOT NULL DEFAULT '';
 
 -- Badges concedidas à mão pela liderança (girls, parceiro, vip, campeao)
 CREATE TABLE IF NOT EXISTS user_badges (
