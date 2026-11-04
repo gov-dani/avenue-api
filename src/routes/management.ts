@@ -18,6 +18,7 @@ import { dmWhitelistApproved, dmWhitelistRejected } from '../notify.js';
 import {
   adminUserSchema,
   badgeDefSchema,
+  firstIssue,
   grantsSchema,
   profileSchema,
   whitelistReviewSchema,
@@ -158,7 +159,7 @@ export default async function managementRoutes(app: FastifyInstance) {
   // Edita o perfil inteiro de qualquer pessoa (mesmos campos e regras do painel)
   app.put<{ Params: { username: string } }>('/owner/users/:username/profile', async (req, reply) => {
     const parsed = profileSchema.safeParse(req.body);
-    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
+    if (!parsed.success) return reply.code(400).send({ error: firstIssue(parsed.error) });
 
     const target = await findByUsername(req.params.username);
     if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });

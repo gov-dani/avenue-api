@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { env } from '../env.js';
 import { queryOne, run } from '../db.js';
 import { requireWhitelisted } from '../auth.js';
-import { profileSchema } from '../schemas.js';
+import { firstIssue, profileSchema } from '../schemas.js';
 import { fetchActivity } from '../presence.js';
 import { refreshIfStale } from '../roblox-store.js';
 import { refreshIfStale as refreshTwitch } from '../twitch-store.js';
@@ -78,7 +78,7 @@ export default async function profileRoutes(app: FastifyInstance) {
 
   app.put('/me/profile', { preHandler: requireWhitelisted }, async (req, reply) => {
     const parsed = profileSchema.safeParse(req.body);
-    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]!.message });
+    if (!parsed.success) return reply.code(400).send({ error: firstIssue(parsed.error) });
     const p = parsed.data;
 
     const linked = isLinked(req.currentUser!);

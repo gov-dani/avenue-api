@@ -81,6 +81,14 @@ export const profileSchema = z.object({
     .max(16),
 });
 
+/** Primeira mensagem de erro; as genéricas ("Invalid input") ganham o nome do campo que falhou. */
+export function firstIssue(error: z.ZodError): string {
+  const issue = error.issues[0]!;
+  if (issue.message !== 'Invalid input' && !issue.message.startsWith('Invalid input:')) return issue.message;
+  const field = issue.path.join('.');
+  return field ? `Valor inválido em "${field}"` : issue.message;
+}
+
 export const membersQuerySchema = z.object({
   q: z.string().trim().max(40).optional(),
   role: z.enum(['membro', 'equipe', 'lider', 'fundador']).optional(),
