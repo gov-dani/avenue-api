@@ -83,7 +83,23 @@ const KITTY_THEMES: Record<string, 'pink' | 'blue'> = {
   '504882460106948619': 'blue',
 };
 const THEME_IMAGE = { pink: '/hello-kitty.png', blue: '/toothless.png' } as const;
-export const profileTheme = (u: UserRow): 'pink' | 'blue' | '' => KITTY_THEMES[u.discord_id] ?? '';
+
+/** Cores de perfil que dá para escolher ('gold' é o dourado padrão). As classes ficam em web/app/globals.css. */
+export const PROFILE_THEMES = ['gold', 'pink', 'blue', 'purple', 'green', 'red', 'orange', 'cyan'] as const;
+export type ProfileTheme = (typeof PROFILE_THEMES)[number];
+
+/** Podem mudar a cor do perfil sempre, sem depender de liberação: gestão e a dona do tema rosa. */
+const THEME_ALWAYS_ALLOWED = new Set(['257980670310088705', '504882460106948619', '1105505473563734106']);
+
+/** Liberado de fábrica (por Discord ID) ou por um owner em /owner. */
+export const canPickTheme = (u: UserRow) => THEME_ALWAYS_ALLOWED.has(u.discord_id) || Boolean(u.theme_allowed);
+export const isThemeLockedIn = (u: UserRow) => THEME_ALWAYS_ALLOWED.has(u.discord_id);
+
+/** Cor aplicada ao perfil: a escolhida (se ainda tiver permissão), senão a surpresa fixa, senão o dourado. */
+export const profileTheme = (u: UserRow): ProfileTheme | '' => {
+  if (canPickTheme(u) && (PROFILE_THEMES as readonly string[]).includes(u.theme)) return u.theme as ProfileTheme;
+  return KITTY_THEMES[u.discord_id] ?? '';
+};
 
 const ROLE_BADGE: Partial<Record<UserRow['role'], Badge>> = {
   fundador: { key: 'fundador', label: 'Fundador', desc: 'Criou a Avenue' },
@@ -121,9 +137,9 @@ export function computeBadges(u: UserRow): Badge[] {
     out.push({ key: 'dev', label: 'Desenvolvedor', desc: 'Desenvolveu e mantém o site da Avenue' });
   }
 
-  const theme = profileTheme(u);
-  if (theme) {
-    out.push({ key: `surpresa-${theme}`, label: '?????', desc: '?????', color: theme === 'blue' ? '#1e90ff' : '#e6007e', image: THEME_IMAGE[theme] });
+  const kitty = KITTY_THEMES[u.discord_id];
+  if (kitty) {
+    out.push({ key: `surpresa-${kitty}`, label: '?????', desc: '?????', color: kitty === 'blue' ? '#1e90ff' : '#e6007e', image: THEME_IMAGE[kitty] });
   }
 
   for (const key of grantedKeys(u)) out.push(custom.get(key) ?? { key, ...GRANTABLE[key]! });

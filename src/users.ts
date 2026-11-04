@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { computeBadges, grantEventBadge, grantedKeys, profileTheme, publicRole } from './badges.js';
+import { PROFILE_THEMES, canPickTheme, computeBadges, grantEventBadge, grantedKeys, isThemeLockedIn, profileTheme, publicRole } from './badges.js';
 import { query, queryOne, run, transaction } from './db.js';
 import { env } from './env.js';
 import { CODE_TTL_MIN } from './roblox.js';
@@ -33,6 +33,7 @@ export interface UserRow {
   views: number;
   created_at: string;
   whitelisted: number;
+  theme_allowed: number;
   // user_profiles
   display_name: string;
   bio: string;
@@ -53,6 +54,7 @@ export interface UserRow {
   gate_effects: string;
   gate_color: string;
   gate_bg: string;
+  theme: string;
   // user_discord
   discord_handle: string;
   discord_name: string;
@@ -107,10 +109,10 @@ type BaseRow = Omit<UserRow, 'links' | 'games' | 'gear' | 'badges' | 'discord_sy
 };
 
 const SELECT_USER = `
-  SELECT u.id, u.discord_id, u.username, u.role, u.views, u.created_at, u.whitelisted,
+  SELECT u.id, u.discord_id, u.username, u.role, u.views, u.created_at, u.whitelisted, u.theme_allowed,
          p.display_name, p.bio, p.location, p.avatar_url, p.banner_url, p.discord, p.music_url, p.music_title,
          p.avatar_decoration, p.name_style, p.name_font, p.show_activity, p.show_views, p.link_layout,
-         p.gate_enabled, p.gate_text, p.gate_effects, p.gate_color, p.gate_bg,
+         p.gate_enabled, p.gate_text, p.gate_effects, p.gate_color, p.gate_bg, p.theme,
          d.handle AS discord_handle, d.name AS discord_name, d.avatar_url AS discord_avatar,
          d.banner_url AS discord_banner, d.accent AS discord_accent, d.synced_at AS discord_synced_at,
          d.sync_avatar, d.sync_banner, d.sync_name,
@@ -301,6 +303,8 @@ async function replaceList(
 
 export const setRole = (id: number, role: Role) => run('UPDATE users SET role = ? WHERE id = ?', [role, id]);
 export const setUsername = (id: number, username: string) => run('UPDATE users SET username = ? WHERE id = ?', [username, id]);
+export const setThemeAllowed = (id: number, allowed: boolean) => run('UPDATE users SET theme_allowed = ? WHERE id = ?', [Number(allowed), id]);
+export const setTheme = (id: number, theme: string) => run('UPDATE user_profiles SET theme = ? WHERE user_id = ?', [theme, id]);
 export const setViews = (id: number, views: number) => run('UPDATE users SET views = ? WHERE id = ?', [views, id]);
 // Perfil, listas, badges e visualizações caem junto (ON DELETE CASCADE)
 export const deleteUser = (id: number) => run('DELETE FROM users WHERE id = ?', [id]);
@@ -411,6 +415,10 @@ export const toPrivate = (u: UserRow) => ({
   id: u.id,
   role: u.role,
   canManage: canManage(u),
+  canPickTheme: canPickTheme(u),
+  themeChoice: canPickTheme(u) && (PROFILE_THEMES as readonly string[]).includes(u.theme) ? u.theme : '',
+  themeAllowedByOwner: Boolean(u.theme_allowed),
+  themeAlwaysAllowed: isThemeLockedIn(u),
   views: u.views,
   whitelisted: isWhitelisted(u),
   syncAvatar: Boolean(u.sync_avatar),

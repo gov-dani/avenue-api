@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { env } from '../env.js';
 import { queryOne, run } from '../db.js';
+import { canPickTheme } from '../badges.js';
 import { requireWhitelisted } from '../auth.js';
-import { firstIssue, profileSchema } from '../schemas.js';
+import { firstIssue, profileSchema, themeSchema } from '../schemas.js';
 import { fetchActivity } from '../presence.js';
 import { refreshIfStale } from '../roblox-store.js';
 import { refreshIfStale as refreshTwitch } from '../twitch-store.js';
 import { refreshIfStale as refreshValorant } from '../valorant-store.js';
-import { WHITELISTED_SQL, applySync, findById, findByUsername, isLinked, isWhitelisted, saveProfile, toPrivate, toPublic } from '../users.js';
+import { WHITELISTED_SQL, applySync, findById, findByUsername, isLinked, isWhitelisted, saveProfile, setTheme, toPrivate, toPublic } from '../users.js';
 
 const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_NEW_VIEWS_PER_HOUR = 300;
@@ -85,6 +86,15 @@ export default async function profileRoutes(app: FastifyInstance) {
     await saveProfile(req.currentUser!.id, p, linked);
     // O que está marcado para acompanhar o Discord vale mais que o texto enviado
     await applySync(req.currentUser!.id);
+    return toPrivate((await findById(req.currentUser!.id))!);
+  });
+
+  // Cor do perfil: só quem um owner liberou (ou está liberado por Discord ID)
+  app.put('/me/theme', { preHandler: requireWhitelisted }, async (req, reply) => {
+    const parsed = themeSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Cor inválida' });
+    if (!canPickTheme(req.currentUser!)) return reply.code(403).send({ error: 'Você ainda não foi liberado para mudar a cor do perfil' });
+    await setTheme(req.currentUser!.id, parsed.data.theme);
     return toPrivate((await findById(req.currentUser!.id))!);
   });
 

@@ -20,6 +20,7 @@ import {
   badgeDefSchema,
   firstIssue,
   grantsSchema,
+  themeAccessSchema,
   profileSchema,
   whitelistReviewSchema,
   RESERVED_USERNAMES,
@@ -37,6 +38,7 @@ import {
   saveProfile,
   setBadges,
   setRole,
+  setThemeAllowed,
   setUsername,
   setViews,
   toPrivate,
@@ -215,6 +217,19 @@ export default async function managementRoutes(app: FastifyInstance) {
     const badges = [...new Set(parsed.data.badges)];
     await setBadges(target.id, badges);
     await audit(req.currentUser!, 'badges alteradas', target.username, badges.join(', ') || 'nenhuma');
+    return asDetail((await findByUsername(target.username))!);
+  });
+
+  // Libera (ou tira) a permissão de mudar a cor do perfil
+  app.put<{ Params: { username: string } }>('/owner/users/:username/theme-access', async (req, reply) => {
+    const parsed = themeAccessSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Pedido inválido' });
+
+    const target = await findByUsername(req.params.username);
+    if (!target) return reply.code(404).send({ error: 'Usuário não encontrado' });
+
+    await setThemeAllowed(target.id, parsed.data.allowed);
+    await audit(req.currentUser!, parsed.data.allowed ? 'cor liberada' : 'cor bloqueada', target.username);
     return asDetail((await findByUsername(target.username))!);
   });
 

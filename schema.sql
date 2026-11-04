@@ -68,6 +68,10 @@ ALTER TABLE user_profiles ADD COLUMN gate_effects VARCHAR(80) NOT NULL DEFAULT '
 ALTER TABLE user_profiles ADD COLUMN gate_color VARCHAR(7) NOT NULL DEFAULT '#ffffff';
 ALTER TABLE user_profiles ADD COLUMN gate_bg VARCHAR(7) NOT NULL DEFAULT '#000000';
 
+-- Cor do perfil: só muda quem um owner liberou (users.theme_allowed) ou está liberado por Discord ID no código
+ALTER TABLE user_profiles ADD COLUMN theme VARCHAR(16) NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN theme_allowed TINYINT NOT NULL DEFAULT 0;
+
 -- Dados vindos do Discord e o que do perfil acompanha a conta
 CREATE TABLE IF NOT EXISTS user_discord (
   user_id       INT UNSIGNED NOT NULL PRIMARY KEY,
