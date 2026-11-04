@@ -135,7 +135,7 @@ export const whitelistReviewSchema = z.object({
 
 export const themeSchema = z.object({
   // '' volta para a cor automática (a surpresa fixa, se houver, ou o dourado)
-  theme: z.union([z.literal(''), z.enum(['gold', 'pink', 'blue', 'purple', 'green', 'red', 'orange', 'cyan'])]),
+  theme: z.union([z.literal(''), z.enum(['gold', 'pink', 'blue', 'purple', 'green', 'red', 'orange', 'cyan']), z.string().regex(/^#[0-9a-fA-F]{6}$/).transform((h) => h.toLowerCase())]),
 });
 
 export const themeAccessSchema = z.object({ allowed: z.boolean() });

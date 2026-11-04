@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { PROFILE_THEMES, canPickTheme, computeBadges, grantEventBadge, grantedKeys, isThemeLockedIn, profileTheme, publicRole } from './badges.js';
+import { canPickTheme, isValidTheme, computeBadges, grantEventBadge, grantedKeys, isThemeLockedIn, profileTheme, publicRole } from './badges.js';
 import { query, queryOne, run, transaction } from './db.js';
 import { env } from './env.js';
 import { CODE_TTL_MIN } from './roblox.js';
@@ -416,7 +416,7 @@ export const toPrivate = (u: UserRow) => ({
   role: u.role,
   canManage: canManage(u),
   canPickTheme: canPickTheme(u),
-  themeChoice: canPickTheme(u) && (PROFILE_THEMES as readonly string[]).includes(u.theme) ? u.theme : '',
+  themeChoice: canPickTheme(u) && isValidTheme(u.theme) ? u.theme : '',
   themeAllowedByOwner: Boolean(u.theme_allowed),
   themeAlwaysAllowed: isThemeLockedIn(u),
   views: u.views,

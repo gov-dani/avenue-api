@@ -96,8 +96,10 @@ export const canPickTheme = (u: UserRow) => THEME_ALWAYS_ALLOWED.has(u.discord_i
 export const isThemeLockedIn = (u: UserRow) => THEME_ALWAYS_ALLOWED.has(u.discord_id);
 
 /** Cor aplicada ao perfil: a escolhida (se ainda tiver permissão), senão a surpresa fixa, senão o dourado. */
-export const profileTheme = (u: UserRow): ProfileTheme | '' => {
-  if (canPickTheme(u) && (PROFILE_THEMES as readonly string[]).includes(u.theme)) return u.theme as ProfileTheme;
+export const isValidTheme = (t: string) => (PROFILE_THEMES as readonly string[]).includes(t) || /^#[0-9a-f]{6}$/.test(t);
+
+export const profileTheme = (u: UserRow): string => {
+  if (canPickTheme(u) && isValidTheme(u.theme)) return u.theme;
   return KITTY_THEMES[u.discord_id] ?? '';
 };
 
