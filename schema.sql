@@ -213,6 +213,12 @@ CREATE TABLE IF NOT EXISTS badge_defs (
 ALTER TABLE badge_defs MODIFY icon VARCHAR(48) NOT NULL DEFAULT 'star';
 ALTER TABLE badge_defs ADD COLUMN icon_svg TEXT NULL;
 
+-- Badges temporárias: mode = manual | signup (quem criar conta até `until`) | everyone (todos até `until`) | people (X dias a quem receber)
+ALTER TABLE badge_defs ADD COLUMN mode VARCHAR(10) NOT NULL DEFAULT 'manual';
+ALTER TABLE badge_defs ADD COLUMN `until` DATETIME NULL;
+ALTER TABLE badge_defs ADD COLUMN days INT NULL;
+ALTER TABLE user_badges ADD COLUMN expires_at DATETIME NULL;
+
 -- Histórico do que foi feito em /management
 CREATE TABLE IF NOT EXISTS audit_log (
   id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

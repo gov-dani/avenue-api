@@ -19,6 +19,8 @@ export interface IconSvg {
   body: string;
 }
 
+export type BadgeMode = 'manual' | 'signup' | 'everyone' | 'people';
+
 export interface CustomBadge {
   key: string;
   label: string;
@@ -26,6 +28,11 @@ export interface CustomBadge {
   color: string;
   icon: string;
   svg?: IconSvg;
+  /** manual: sem prazo · signup: quem criou conta até `until` · everyone: todos até `until` · people: `days` dias a quem receber */
+  mode: BadgeMode;
+  /** UTC, "YYYY-MM-DD HH:MM:SS" */
+  until: string | null;
+  days: number | null;
 }
 
 // Badges criadas em /owner ficam na memória para o computeBadges (síncrono) enxergar.
@@ -33,7 +40,7 @@ let custom = new Map<string, CustomBadge>();
 
 export async function loadCustomBadges() {
   const rows = await query<CustomBadge & { icon_svg: string | null }>(
-    'SELECT badge_key AS `key`, label, description AS `desc`, color, icon, icon_svg FROM badge_defs ORDER BY created_at',
+    'SELECT badge_key AS `key`, label, description AS `desc`, color, icon, icon_svg, mode, `until`, days FROM badge_defs ORDER BY created_at',
   );
   custom = new Map(
     rows.map(({ icon_svg, ...r }) => {
@@ -49,7 +56,18 @@ export async function loadCustomBadges() {
  */
 const EVENT_BADGE = { label: 'Halloween 2026', until: '2026-11-01 02:59:59' };
 
+const nowSql = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+/** Badges "quem criar conta até X": dadas sozinhas, para sempre, a quem se cadastrou até o prazo. */
+async function grantSignupBadges() {
+  for (const b of custom.values()) {
+    if (b.mode !== 'signup' || !b.until) continue;
+    await run('INSERT IGNORE INTO user_badges (user_id, badge) SELECT id, ? FROM users WHERE created_at <= ?', [b.key, b.until]);
+  }
+}
+
 export async function grantEventBadge() {
+  await grantSignupBadges();
   const badge = [...custom.values()].find((b) => b.label.trim().toLowerCase() === EVENT_BADGE.label.toLowerCase());
   if (!badge) return;
   await run(
@@ -60,7 +78,10 @@ export async function grantEventBadge() {
 
 export const customBadges = () => [...custom.values()];
 export const isBuiltinGrant = (key: string) => Object.hasOwn(GRANTABLE, key);
-export const isGrantable = (key: string) => isBuiltinGrant(key) || custom.has(key);
+export const isGrantable = (key: string) => isBuiltinGrant(key) || (custom.has(key) && custom.get(key)!.mode !== 'everyone');
+/** Dias de duração de uma badge dada à mão (null = sem prazo). */
+export const grantDays = (key: string) => (custom.get(key)?.mode === 'people' ? custom.get(key)!.days : null);
+const activeForEveryone = () => [...custom.values()].filter((b) => b.mode === 'everyone' && b.until && b.until > nowSql());
 
 /** Badges que a liderança concede à mão. As demais são calculadas do perfil. */
 export const GRANTABLE: Record<string, Omit<Badge, 'key'>> = {
@@ -145,6 +166,7 @@ export function computeBadges(u: UserRow): Badge[] {
   }
 
   for (const key of grantedKeys(u)) out.push(custom.get(key) ?? { key, ...GRANTABLE[key]! });
+  for (const b of activeForEveryone()) if (!u.badges.includes(b.key)) out.push(b);
 
   // O desenvolvedor tem as mesmas tags dos membros, qualquer que seja o cargo
   if (isDev || u.role !== 'visitante') {

@@ -112,6 +112,13 @@ export const badgeDefSchema = z.object({
   icon: z.union([z.enum(BADGE_ICONS), z.literal('upload'), z.string().regex(/^[a-z0-9-]{1,40}:[a-z0-9_.-]{1,80}$/, 'Ícone inválido')]),
   // Texto de um .svg enviado pelo dono (vira icon = 'upload')
   svgFile: z.string().max(40_000).optional(),
+  // Badge temporária: manual (sem prazo) · signup (quem criar conta até `until`) · everyone (todos até `until`) · people (`days` dias a quem receber)
+  mode: z.enum(['manual', 'signup', 'everyone', 'people']).default('manual'),
+  until: z.string().datetime({ offset: true }).optional(),
+  days: z.number().int().min(1).max(3650).optional(),
+}).superRefine((b, ctx) => {
+  if ((b.mode === 'signup' || b.mode === 'everyone') && !b.until) ctx.addIssue({ code: 'custom', message: 'Informe até quando', path: ['until'] });
+  if (b.mode === 'people' && !b.days) ctx.addIssue({ code: 'custom', message: 'Informe quantos dias a badge dura', path: ['days'] });
 });
 
 export const adminUserSchema = z.object({

@@ -103,6 +103,12 @@ async function resolveIcon(icon: string, upload?: string, saved?: string): Promi
   }
 }
 
+/** Prazo da badge no formato do banco (UTC): [modo, até quando, dias]. */
+function lifetime(b: { mode: string; until?: string; days?: number }): [string, string | null, number | null] {
+  const until = b.until && (b.mode === 'signup' || b.mode === 'everyone') ? new Date(b.until).toISOString().slice(0, 19).replace('T', ' ') : null;
+  return [b.mode, until, b.mode === 'people' ? (b.days ?? null) : null];
+}
+
 const ts = (sql: string) => Date.parse(`${sql.replace(' ', 'T')}Z`);
 
 export default async function managementRoutes(app: FastifyInstance) {
@@ -322,11 +328,11 @@ export default async function managementRoutes(app: FastifyInstance) {
 
   // ---------- Badges ----------
   async function withHolders() {
-    const rows = await query<{ badge: string; n: number }>('SELECT badge, COUNT(*) AS n FROM user_badges GROUP BY badge');
+    const rows = await query<{ badge: string; n: number }>('SELECT badge, COUNT(*) AS n FROM user_badges WHERE expires_at IS NULL OR expires_at > UTC_TIMESTAMP() GROUP BY badge');
     const count = new Map(rows.map((r) => [r.badge, Number(r.n)]));
     return {
       granted: Object.entries(GRANTABLE).map(([key, b]) => ({ key, ...b, holders: count.get(key) ?? 0 })),
-      custom: customBadges().map((b) => ({ ...b, holders: count.get(b.key) ?? 0 })),
+      custom: customBadges().map((b) => ({ ...b, until: b.until ? `${b.until.replace(' ', 'T')}Z` : null, holders: count.get(b.key) ?? 0 })),
       automatic: AUTOMATIC,
     };
   }
@@ -339,17 +345,21 @@ export default async function managementRoutes(app: FastifyInstance) {
     if (customBadges().length >= 40) return reply.code(400).send({ error: 'Limite de 40 badges criadas' });
 
     const { label, desc, color, icon, svgFile } = parsed.data;
+    const [mode, until, days] = lifetime(parsed.data);
     const svg = await resolveIcon(icon, svgFile);
     if (svg === undefined) return reply.code(400).send({ error: 'Ícone inválido. Use um .svg simples, sem scripts nem imagens.' });
 
     const key = `c_${randomBytes(5).toString('hex')}`;
-    await run('INSERT INTO badge_defs (badge_key, label, description, color, icon, icon_svg) VALUES (?, ?, ?, ?, ?, ?)', [
+    await run('INSERT INTO badge_defs (badge_key, label, description, color, icon, icon_svg, mode, `until`, days) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
       key,
       label,
       desc,
       color.toLowerCase(),
       icon,
       svg,
+      mode,
+      until,
+      days,
     ]);
     await loadCustomBadges();
     await grantEventBadge();
@@ -365,19 +375,24 @@ export default async function managementRoutes(app: FastifyInstance) {
     }
 
     const { label, desc, color, icon, svgFile } = parsed.data;
+    const [mode, until, days] = lifetime(parsed.data);
     const saved = customBadges().find((b) => b.key === req.params.key)?.svg;
     const svg = await resolveIcon(icon, svgFile, saved && JSON.stringify(saved));
     if (svg === undefined) return reply.code(400).send({ error: 'Ícone inválido. Use um .svg simples, sem scripts nem imagens.' });
 
-    await run('UPDATE badge_defs SET label = ?, description = ?, color = ?, icon = ?, icon_svg = ? WHERE badge_key = ?', [
+    await run('UPDATE badge_defs SET label = ?, description = ?, color = ?, icon = ?, icon_svg = ?, mode = ?, `until` = ?, days = ? WHERE badge_key = ?', [
       label,
       desc,
       color.toLowerCase(),
       icon,
       svg,
+      mode,
+      until,
+      days,
       req.params.key,
     ]);
     await loadCustomBadges();
+    await grantEventBadge();
     await audit(req.currentUser!, 'badge editada', label);
     return withHolders();
   });

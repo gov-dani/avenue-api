@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { canPickTheme, isValidTheme, computeBadges, grantEventBadge, grantedKeys, isThemeLockedIn, profileTheme, publicRole } from './badges.js';
+import { canPickTheme, isValidTheme, computeBadges, grantDays, grantEventBadge, grantedKeys, isThemeLockedIn, profileTheme, publicRole } from './badges.js';
 import { query, queryOne, run, transaction } from './db.js';
 import { env } from './env.js';
 import { CODE_TTL_MIN } from './roblox.js';
@@ -145,7 +145,7 @@ async function hydrate(rows: BaseRow[]): Promise<UserRow[]> {
     query<Link & { user_id: number }>('SELECT user_id, label, url FROM user_links WHERE user_id IN (?) ORDER BY sort_order', [ids]),
     query<Game & { user_id: number }>('SELECT user_id, name, detail FROM user_games WHERE user_id IN (?) ORDER BY sort_order', [ids]),
     query<Gear & { user_id: number }>('SELECT user_id, category, name, image_url AS image FROM user_gear WHERE user_id IN (?) ORDER BY sort_order', [ids]),
-    query<{ user_id: number; badge: string }>('SELECT user_id, badge FROM user_badges WHERE user_id IN (?)', [ids]),
+    query<{ user_id: number; badge: string }>('SELECT user_id, badge FROM user_badges WHERE user_id IN (?) AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP())', [ids]),
   ]);
 
   const by = <T extends { user_id: number }>(list: T[], id: number) => list.filter((x) => x.user_id === id);
@@ -311,8 +311,24 @@ export const deleteUser = (id: number) => run('DELETE FROM users WHERE id = ?', 
 
 export async function setBadges(id: number, badges: string[]) {
   await transaction(async (tx) => {
+    // Quem já tinha a badge mantém o prazo; badge com duração começa a contar agora
+    const had = await query<{ badge: string; expires_at: string | null }>(
+      'SELECT badge, expires_at FROM user_badges WHERE user_id = ? AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP())',
+      [id],
+    );
+    const kept = new Map(had.map((r) => [r.badge, r.expires_at]));
     await tx('DELETE FROM user_badges WHERE user_id = ?', [id]);
-    if (badges.length > 0) await tx('INSERT INTO user_badges (user_id, badge) VALUES ?', [badges.map((b) => [id, b])]);
+    if (badges.length === 0) return;
+    const rows = badges.map((b) => {
+      const days = grantDays(b);
+      const expires = kept.has(b)
+        ? kept.get(b)!
+        : days
+          ? new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 19).replace('T', ' ')
+          : null;
+      return [id, b, expires];
+    });
+    await tx('INSERT INTO user_badges (user_id, badge, expires_at) VALUES ?', [rows]);
   });
 }
 
