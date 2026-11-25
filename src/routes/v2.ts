@@ -6,7 +6,7 @@ import { query, queryOne, run, transaction } from '../db.js';
 import { env } from '../env.js';
 import { firstIssue, mediaImageUrl } from '../schemas.js';
 import { canManage, findByUsername, isWhitelisted, type UserRow } from '../users.js';
-import { MAX_NOTES_SHOWN, MAX_PHOTOS, V2_LAYOUTS, geocode, isV2, profileLevel } from '../v2.js';
+import { MAX_NOTES_SHOWN, MAX_PHOTOS, V2_LAYOUTS, geocode, isV2, normalizeLayout, profileLevel } from '../v2.js';
 import { ipKey } from './profiles.js';
 
 const saveSchema = z.object({
@@ -67,7 +67,7 @@ async function loadV2(user: UserRow, viewerHash: string, all = false) {
     showMap: Boolean(s.v2_show_map),
     showNotes: Boolean(s.v2_show_notes),
     showLevel: Boolean(s.v2_show_level),
-    layout: V2_LAYOUTS.includes(s.v2_layout as (typeof V2_LAYOUTS)[number]) ? s.v2_layout : 'tall',
+    layout: normalizeLayout(s.v2_layout),
   };
 
   const [photos, notes] = await Promise.all([

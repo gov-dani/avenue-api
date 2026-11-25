@@ -3,8 +3,12 @@ export const V2_DISCORD_IDS = new Set(['504882460106948619']);
 export const isV2 = (u: { discord_id: string }) => V2_DISCORD_IDS.has(u.discord_id);
 
 export const MAX_PHOTOS = 24;
-/** Formato da grade de fotos: em pé (4 colunas) ou quadrada (3 colunas) */
-export const V2_LAYOUTS = ['tall', 'square'] as const;
+/** Formato das fotos: proporção original (como no Instagram), retrato 4:5 ou quadrada. Valor antigo 'tall' vale como natural. */
+export const V2_LAYOUTS = ['natural', 'portrait', 'square'] as const;
+export type V2Layout = (typeof V2_LAYOUTS)[number];
+
+/** O que está no banco pode ser o valor antigo ('tall') ou desconhecido: cai no natural */
+export const normalizeLayout = (v: string): V2Layout => ((V2_LAYOUTS as readonly string[]).includes(v) ? (v as V2Layout) : 'natural');
 export const MAX_NOTES_SHOWN = 50;
 
 /** Níveis da insígnia, que sobem com o tempo de perfil. `days` é a idade mínima da conta. */
