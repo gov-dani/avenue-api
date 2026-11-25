@@ -8,6 +8,7 @@ import { COOKIE_NAME } from './auth.js';
 import './db.js';
 import { grantEventBadge, loadCustomBadges } from './badges.js';
 import { startBackupSchedule } from './backup.js';
+import { startAutoViews } from './autoviews.js';
 import { startPresenceBot } from './presence.js';
 import authRoutes from './routes/auth.js';
 import factionRoutes from './routes/faction.js';
@@ -64,6 +65,7 @@ await grantEventBadge();
 
 startPresenceBot(app.log);
 startBackupSchedule(app.log);
+startAutoViews(app.log);
 
 try {
   await app.listen({ port: env.PORT, host: env.HOST });
