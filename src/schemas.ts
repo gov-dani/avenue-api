@@ -19,7 +19,7 @@ const mediaUrl = z.union([
 ]);
 
 // Foto do periférico: link externo (Imgur, Discord...) ou imagem enviada para o /media
-const mediaImageUrl = z.union([
+export const mediaImageUrl = z.union([
   httpUrl,
   z.string().regex(/^\/api\/media\/[a-f0-9]{32}\.(png|jpg|gif|webp)$/),
   z.literal(''),

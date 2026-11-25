@@ -15,7 +15,7 @@ const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_NEW_VIEWS_PER_HOUR = 300;
 
 /** IPv4 inteiro; IPv6 só pelo /64, já que uma pessoa controla o bloco todo e giraria o final à vontade. */
-function ipKey(ip: string): string {
+export function ipKey(ip: string): string {
   const v4 = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
   if (v4) return v4[1]!;
   if (!ip.includes(':')) return ip;

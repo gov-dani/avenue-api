@@ -4,6 +4,7 @@ import { query, queryOne, run, transaction } from './db.js';
 import { env } from './env.js';
 import { CODE_TTL_MIN } from './roblox.js';
 import { trackerUrl } from './valorant.js';
+import { isV2 } from './v2.js';
 import { RESERVED_USERNAMES, type profileSchema } from './schemas.js';
 
 export const ROLES = ['visitante', 'membro', 'equipe', 'lider', 'fundador'] as const;
@@ -341,6 +342,8 @@ export async function setBadges(id: number, badges: string[]) {
 export function toPublic(u: UserRow) {
   return {
     username: u.username,
+    /** Perfil na versão 2 (fotos, mapa, bilhetes), só para quem está liberado */
+    v2: isV2(u),
     displayName: u.display_name,
     bio: u.bio,
     location: u.location,

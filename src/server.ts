@@ -18,6 +18,7 @@ import robloxRoutes from './routes/roblox.js';
 import tiktokRoutes from './routes/tiktok.js';
 import twitchRoutes from './routes/twitch.js';
 import valorantRoutes from './routes/valorant.js';
+import v2Routes from './routes/v2.js';
 import whitelistRoutes from './routes/whitelist.js';
 
 const app = Fastify({ logger: true, trustProxy: true, bodyLimit: 100_000 });
@@ -52,6 +53,7 @@ await app.register(robloxRoutes);
 await app.register(twitchRoutes);
 await app.register(tiktokRoutes);
 await app.register(valorantRoutes);
+await app.register(v2Routes);
 await app.register(whitelistRoutes);
 await app.register(mediaRoutes);
 await app.register(factionRoutes);

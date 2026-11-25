@@ -263,3 +263,39 @@ CREATE TABLE IF NOT EXISTS whitelist_requests (
   INDEX idx_whitelist_user (user_id, id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Perfil v2 (liberado só para quem está em V2_DISCORD_IDS): fotos, mapa e bilhetes.
+-- Coordenadas do mapa, achadas a partir do texto de `location`
+ALTER TABLE user_profiles ADD COLUMN lat DECIMAL(9,6) NULL;
+ALTER TABLE user_profiles ADD COLUMN lng DECIMAL(9,6) NULL;
+
+-- Galeria de fotos do perfil
+CREATE TABLE IF NOT EXISTS user_photos (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NOT NULL,
+  sort_order TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  url        VARCHAR(500) NOT NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_photos_user (user_id, sort_order),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Curtidas nas fotos: uma por visitante (conta ou IP, em hash)
+CREATE TABLE IF NOT EXISTS photo_likes (
+  photo_id INT UNSIGNED NOT NULL,
+  visitor  VARCHAR(64)  NOT NULL,
+  PRIMARY KEY (photo_id, visitor),
+  FOREIGN KEY (photo_id) REFERENCES user_photos(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bilhetes: recados que quem está logado deixa no perfil de outra pessoa
+CREATE TABLE IF NOT EXISTS profile_notes (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  profile_id INT UNSIGNED NOT NULL,
+  author_id  INT UNSIGNED NOT NULL,
+  body       VARCHAR(280) NOT NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_profile_notes_profile (profile_id, id),
+  FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
