@@ -1,5 +1,5 @@
 /** Perfil v2: liberado por Discord ID, enquanto está em teste. */
-export const V2_DISCORD_IDS = new Set(['504882460106948619']);
+export const V2_DISCORD_IDS = new Set(['504882460106948619', '1105505473563734106']);
 export const isV2 = (u: { discord_id: string }) => V2_DISCORD_IDS.has(u.discord_id);
 
 export const MAX_PHOTOS = 24;
