@@ -3,6 +3,8 @@ export const V2_DISCORD_IDS = new Set(['504882460106948619']);
 export const isV2 = (u: { discord_id: string }) => V2_DISCORD_IDS.has(u.discord_id);
 
 export const MAX_PHOTOS = 24;
+/** Formato da grade de fotos: em pé (4 colunas) ou quadrada (3 colunas) */
+export const V2_LAYOUTS = ['tall', 'square'] as const;
 export const MAX_NOTES_SHOWN = 50;
 
 /** Níveis da insígnia, que sobem com o tempo de perfil. `days` é a idade mínima da conta. */

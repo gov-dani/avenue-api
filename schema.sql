@@ -299,3 +299,13 @@ CREATE TABLE IF NOT EXISTS profile_notes (
   FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Organização do perfil v2: quais seções aparecem e o formato da grade de fotos
+ALTER TABLE user_profiles ADD COLUMN v2_show_photos TINYINT NOT NULL DEFAULT 1;
+ALTER TABLE user_profiles ADD COLUMN v2_show_map TINYINT NOT NULL DEFAULT 1;
+ALTER TABLE user_profiles ADD COLUMN v2_show_notes TINYINT NOT NULL DEFAULT 1;
+ALTER TABLE user_profiles ADD COLUMN v2_show_level TINYINT NOT NULL DEFAULT 1;
+ALTER TABLE user_profiles ADD COLUMN v2_layout VARCHAR(8) NOT NULL DEFAULT 'tall';
+
+-- Foto escondida: continua guardada, mas some do perfil público
+ALTER TABLE user_photos ADD COLUMN hidden TINYINT NOT NULL DEFAULT 0;
