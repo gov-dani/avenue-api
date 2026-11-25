@@ -11,26 +11,28 @@ const MAX = 10;
 const seeded = (seed: string) => createHash('sha256').update(seed).digest().readUInt32BE(0);
 
 /**
- * Quantas visualizações o dia tem (5 a 10) e em quais horas (UTC) cada uma cai.
+ * Quantas visualizações o dia tem (5 a 10) e em quais minutos do dia (0 a 1439, UTC) cada uma cai.
  * Só depende da data e do ID, então reiniciar a API não muda o plano do dia.
  */
 export function viewPlan(discordId: string, day: string): number[] {
   const total = MIN + (seeded(`${discordId}|${day}|total`) % (MAX - MIN + 1));
-  const hours = Array.from({ length: 24 }, (_, h) => h).sort((a, b) => seeded(`${discordId}|${day}|${a}`) - seeded(`${discordId}|${day}|${b}`));
-  return hours.slice(0, total);
+  const minutes = new Set<number>();
+  for (let i = 0; minutes.size < total; i++) minutes.add(seeded(`${discordId}|${day}|${i}`) % 1440);
+  return [...minutes];
 }
 
-/** A cada hora, adiciona 1 visualização se aquela hora foi sorteada para o dia. */
+/** A cada minuto, adiciona 1 visualização se aquele minuto foi sorteado: elas caem ao longo do dia, uma a uma. */
 export function startAutoViews(log: FastifyBaseLogger) {
-  let lastSlot = '';
+  let lastSlot = -1;
   const tick = async () => {
     const now = new Date();
     const day = now.toISOString().slice(0, 10);
-    const slot = `${day}T${now.getUTCHours()}`;
+    const minute = now.getUTCHours() * 60 + now.getUTCMinutes();
+    const slot = Date.parse(day) / 60000 + minute;
     if (slot === lastSlot) return;
     lastSlot = slot;
     for (const id of AUTO_VIEWS_DISCORD_IDS) {
-      if (!viewPlan(id, day).includes(now.getUTCHours())) continue;
+      if (!viewPlan(id, day).includes(minute)) continue;
       try {
         await run('UPDATE users SET views = views + 1 WHERE discord_id = ?', [id]);
       } catch (err) {
@@ -38,6 +40,5 @@ export function startAutoViews(log: FastifyBaseLogger) {
       }
     }
   };
-  void tick();
-  setInterval(() => void tick(), 5 * 60 * 1000).unref();
+  setInterval(() => void tick(), 20 * 1000).unref();
 }
